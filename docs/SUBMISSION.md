@@ -16,7 +16,7 @@ Project Uzima: an AI agent that calls every capable hospital at once to find an 
 
 We're starting with the doctor or nurse at a small hospital who has a critical patient they can't treat: a heart attack, a stroke, severe trauma, an obstetric emergency. They have to find a bigger hospital that can take the patient right now. There's no live, shared view of which beds and teams are free, so they pick up one phone and call hospitals one at a time. Each call means waiting on hold, explaining the case again, and often hearing "we're full" or "call back." Meanwhile the patient's window is closing.
 
-The delay is measurable and deadly. Only 26% of stroke patients needing a clot-removal transfer leave the first hospital within the recommended 90 minutes (Lancet Neurology, 2026). Only 10 to 14% of hospitals meet the 30-minute goal for heart-attack transfers (JACC Case Reports, 2025). 42% of rural Americans have no major trauma center within an hour by road (JAMA Network Open, 2026). Worldwide it's larger still: of 8.6 million deaths a year from treatable conditions in low- and middle-income countries, about 5 million come from poor-quality care, many among people who had already reached the health system (Lancet Global Health Commission, 2018).
+Sequential calling adds coordination delay before a transfer can be arranged. Our prototype targets that step: asking multiple capable hospitals at once and turning their confirmed answers into a clear choice for the referring clinician. Clinical outcome benefits still need to be measured in a supervised pilot.
 
 This matters for everyone involved. Patients lose treatable minutes to phone tag, not to distance. Clinicians at small hospitals spend their time on hold instead of with the patient. Receiving hospitals get rushed, incomplete handoffs. And the places that suffer most, rural and under-resourced hospitals, are exactly the ones with the fewest staff to spare for calling around.
 
@@ -54,7 +54,7 @@ flowchart LR
   D --> E
 ```
 
-**How it's built.** Six small Python (FastAPI) services, including a restricted public callback gateway, and a React map dashboard: an orchestrator that selects hospitals and ranks answers, a voice gateway that uses Twilio speech recognition and speech synthesis, with OpenAI GPT OSS on AWS Bedrock interpreting the hospital's responses, a collector that streams every call event live to the dashboard, and a handoff service for the encrypted record and transfer ticket. Simulated hospital conversations are generated live by OpenAI's GPT OSS model running on AWS Bedrock. Each agent is stateless and works the same whether its call is live or simulated, so adding hospitals means starting more agents, not changing code. The same agent image can run as a Kubernetes Job per hospital, and we can store call events in Amazon DynamoDB and get road times from Amazon Location on AWS. Everything also runs in a mock mode with no keys, so anyone can try it.
+**How it's built.** Six small Python (FastAPI) services, including a restricted public callback gateway, and a React map dashboard: an orchestrator that selects hospitals and ranks answers, a voice gateway that uses Twilio speech recognition and speech synthesis, with OpenAI GPT OSS on AWS Bedrock interpreting the hospital's responses, a collector that streams every call event live to the dashboard, and a handoff service for the encrypted record and transfer ticket. Simulated hospital conversations are generated live by OpenAI's GPT OSS model running on AWS Bedrock. Live and simulated agents share one event/result contract, so the dashboard and ranking use the same integration. Active calls and records currently use in-memory state. The same agent image can run as a Kubernetes Job per hospital, and we can store call events in Amazon DynamoDB and get road times from Amazon Location on AWS. Everything also runs in a mock mode with no keys, so anyone can try it.
 
 ```mermaid
 flowchart LR
@@ -107,7 +107,7 @@ flowchart LR
 
 | Criterion | Where we meet it |
 | --- | --- |
-| Problem significance and impact | Q3: sourced numbers on transfer delays in the US and deaths from poor-quality care worldwide; a clear user (the clinician at a small hospital) and a clear cost (minutes lost to phone tag). |
+| Problem significance and impact | Q3: a concrete transfer-coordination problem; a clear user (the clinician at a small hospital) and a clear cost (minutes lost to phone tag). |
 | Innovation and use of AI | Q4: many voice agents calling in parallel, read-back confirmation before an answer counts, AI coordinates while plain code and a human decide. Hospitals need no technology at all. |
 | Technical execution | Q4: six services, live phone calls with Twilio speech and Bedrock interpretation, live event stream to the map, standards-based encrypted record, automated tests, honest line between real and simulated. |
 | Real-world viability | Q5: named users and buyers, a flat per-hospital price, a four-week shadow pilot with metrics, HIPAA, EMTALA and TCPA addressed, risks with mitigations. |

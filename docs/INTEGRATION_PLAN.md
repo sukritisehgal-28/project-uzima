@@ -99,3 +99,9 @@ Persist calls/tickets/results, add end-to-end call status callbacks and reconcil
 - Authorized hospital call produced a confirmed live availability result with ready time 10 minutes, visible on the dashboard.
 - First bridge connected the sending doctor to the hospital desk, confirmed by Udit. Udit clarified that the accepting doctor must be called separately; this is now implemented and a corrected live handoff is being checked.
 - Public HTTPS ticket and manifest both returned 200, and the encrypted record decrypted successfully. Restarting the services invalidates prior in-memory tickets; create a new ticket for the final recording.
+
+## Final handoff correction
+
+The original hospital desk and the accepting doctor are separate roles and separate numbers. Connect now explicitly dials the accepting doctor before the sending doctor. The hospital desk can leave the conference without ending the doctors' conversation. Udit reported the isolated corrected summary/handoff ran; a fresh full-sequence rehearsal was then started at 2:54 PM, including the hospital confirmation from the beginning.
+
+Submission priority now: finish that rehearsal, save a recording, provide judge access to the currently private repository, and submit before 3:00 PM. No additional feature work is required for the demo scope.
