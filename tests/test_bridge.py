@@ -1,10 +1,13 @@
 """Pure logic of the live call bridge: report_capacity args -> answer_recorded data + AgentResult. Offline."""
+import asyncio
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
 from services.shared.schemas import AgentHeader, Status, TranscriptLine
-from services.sync_twilio.app.main import _twiml_url, answer_data, app, build_instructions, build_result, default_brief
+from services.sync_twilio.app.main import (Bridge, CallRequest, _twiml_url, answer_data, app,
+                                            build_instructions, build_result, default_brief, twiml_docs)
 
 H = AgentHeader(agent_id="A1", hospital_id="greenville", hospital="Delta Regional", phone="+15550100", lat=33.4, lng=-91.0,
                 specialty="cardiac_icu", capability_question="Do you have a cardiac ICU bed and a cath lab team available right now?",
@@ -65,3 +68,156 @@ def test_twiml_served_by_url_for_get_and_post(monkeypatch):
         assert r.status_code == 200 and r.text == twiml
         assert r.headers["content-type"].startswith("text/xml")
     assert tc.post("/twiml/nope").status_code == 404
+
+
+def test_call_twiml_greeting_exercises_real_production_path(monkeypatch):
+    """Req 1: POST /call stores TwiML with exact greeting before <Connect>; Url= used; no inline Twiml=.
+    Monkeypatches _twilio so no network call occurs. Captures the Url sent to Twilio,
+    resolves the stored TwiML from twiml_docs, and asserts on the real generated content."""
+    monkeypatch.setenv("PUBLIC_HOST", "test.ngrok-free.app")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "toktest")
+    monkeypatch.setenv("TWILIO_FROM_NUMBER", "+15550000")
+
+    captured = {}
+
+    async def fake_twilio(path: str, data: dict) -> dict:
+        captured["path"] = path
+        captured["data"] = data
+        return {"sid": "SIM_SID"}
+
+    twiml_docs.clear()
+
+    with patch("services.sync_twilio.app.main._twilio", new=fake_twilio):
+        tc = TestClient(app)
+        resp = tc.post("/call", json={
+            "header": {
+                "agent_id": "A1",
+                "hospital_id": "greenville",
+                "hospital": "Delta Regional",
+                "phone": "+15559999",
+                "lat": 33.4,
+                "lng": -91.0,
+                "specialty": "cardiac_icu",
+                "capability_question": "Do you have a cardiac ICU bed?",
+                "transport": {"est_ground_min": 35, "est_air_min": 18,
+                              "recommended_mode": "ground", "tier": "within_target"},
+                "live": True,
+            },
+            "transfer_id": "TXTEST1",
+            "case_brief": "",
+        })
+
+    assert resp.status_code == 200, resp.text
+
+    # 8. Twilio call creation uses Url=
+    assert "Url" in captured["data"]
+    # 9. Twilio call creation does NOT use inline Twiml=
+    assert "Twiml" not in captured["data"]
+
+    # Resolve the real TwiML from the URL stored by production code
+    twiml_url = captured["data"]["Url"]
+    assert twiml_url.startswith("https://test.ngrok-free.app/twiml/")
+    doc_id = twiml_url.removeprefix("https://test.ngrok-free.app/twiml/")
+    assert doc_id in twiml_docs, "twiml_docs must contain the generated document"
+    twiml = twiml_docs[doc_id]
+
+    # 1. Exact required greeting text
+    assert ("Hello, this is an AI assistant calling for South Sunflower County Hospital "
+            "about a patient transfer. Please hold one moment.") in twiml
+    # 2. <Say> exists
+    assert "<Say>" in twiml
+    # 3. <Connect> exists
+    assert "<Connect>" in twiml
+    # 4. <Say> occurs before <Connect>
+    assert twiml.index("<Say>") < twiml.index("<Connect>")
+    # 5. <Stream> exists
+    assert "<Stream" in twiml
+    # 6. transfer_id present in Stream parameters
+    assert "TXTEST1" in twiml
+    # 7. agent_id present in Stream parameters
+    assert '"A1"' in twiml
+
+
+def test_realtime_startup_failure_sends_apology_not_silent_hangup(monkeypatch):
+    """Req 2 (positive): when _openai_connect() raises, _bridge() must call _twilio with
+    an apology Url= — NOT Status=completed (silent drop). Apology TwiML must have <Say> and <Hangup/>."""
+    monkeypatch.setenv("PUBLIC_HOST", "test.ngrok-free.app")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "toktest")
+    monkeypatch.setenv("TWILIO_FROM_NUMBER", "+15550000")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")   # so has_openai() returns True
+
+    twilio_calls = []
+
+    async def fake_twilio(path: str, data: dict) -> dict:
+        twilio_calls.append({"path": path, "data": data})
+        return {"sid": "SIM_SID"}
+
+    async def fail_connect():
+        raise ConnectionRefusedError("simulated Realtime startup failure")
+
+    def fake_openai_connect():
+        return fail_connect()
+
+    fake_ws = MagicMock()
+    fake_ws.close = AsyncMock()
+    bridge = Bridge(
+        ws=fake_ws,
+        header=H,
+        transfer_id="TXTEST2",
+        brief="test brief",
+        stream_sid="SS1",
+        call_sid="CA_LIVE_SID",
+    )
+
+    twiml_docs.clear()
+
+    with (patch("services.sync_twilio.app.main._twilio", new=fake_twilio),
+          patch("services.sync_twilio.app.main._openai_connect", new=fake_openai_connect)):
+        asyncio.run(bridge._bridge())
+
+    # Exactly one Twilio call was made
+    assert len(twilio_calls) == 1, f"Expected 1 Twilio call, got {twilio_calls}"
+    call = twilio_calls[0]
+
+    # It targeted the live call SID for update, not creating a new call
+    assert "CA_LIVE_SID" in call["path"]
+    # It used Url= (apology TwiML), not Status=completed (silent hangup)
+    assert "Url" in call["data"]
+    assert "Status" not in call["data"]
+
+    # Resolve and inspect the apology TwiML content
+    doc_id = call["data"]["Url"].removeprefix("https://test.ngrok-free.app/twiml/")
+    assert doc_id in twiml_docs
+    apology_twiml = twiml_docs[doc_id]
+    assert "<Say>" in apology_twiml
+    assert "<Hangup/>" in apology_twiml
+
+
+def test_mid_call_drop_does_not_send_apology(monkeypatch):
+    """Req 2 (negative): plain hangup() sends Status=completed only — no apology Url=.
+    Verifies the existing mid-call-drop primitive is a silent drop, not an apology."""
+    monkeypatch.setenv("PUBLIC_HOST", "test.ngrok-free.app")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "toktest")
+    monkeypatch.setenv("TWILIO_FROM_NUMBER", "+15550000")
+
+    twilio_calls = []
+
+    async def fake_twilio(path: str, data: dict) -> dict:
+        twilio_calls.append({"path": path, "data": data})
+        return {}
+
+    fake_ws = MagicMock()
+    fake_ws.close = AsyncMock()
+    bridge = Bridge(ws=fake_ws, header=H, transfer_id="TXTEST3", brief="",
+                    stream_sid="SS2", call_sid="CA_LIVE_SID2")
+
+    with patch("services.sync_twilio.app.main._twilio", new=fake_twilio):
+        asyncio.run(bridge.hangup())
+
+    assert len(twilio_calls) == 1
+    # Normal hangup sends Status=completed, never an apology Url=
+    assert twilio_calls[0]["data"].get("Status") == "completed"
+    assert "Url" not in twilio_calls[0]["data"]
