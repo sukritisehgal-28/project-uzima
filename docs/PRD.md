@@ -173,10 +173,39 @@ Three things compound with use: the bed memory, the swarm itself, and the handof
 | Case | Age, sex, condition, onset time, key scores, ECG or imaging summary, blood thinners, weight |
 | Search | Every center called, each answer, reason and time; who was held and released |
 | Plan | Accepted center, accepting physician, ground or air, ETA, ready time |
-| Insurance | Real-time eligibility result (270/271 via Stedi); the demo uses Stedi's free mock requests with a test key and fixed test member IDs, so no real payer or patient data is touched |
+| Insurance | Real-time eligibility result (X12 270/271 via Stedi) stored as a FHIR Coverage resource; the demo uses Stedi's free mock requests with a test key and fixed test member IDs, so no real payer or patient data is touched |
 | Record | EMTALA log reference, timestamps |
 
-Encrypted with AES-256-GCM, one key per transfer, delivered as a one-time link by SMS; the raw twin is never stored in the clear. In production it becomes a FHIR bundle so it can drop into the receiving EHR. It is a record of what happened during the transfer, not a clinical judgment: the AI never scores severity.
+Built as an HL7 International Patient Summary bundle (medications, allergies, problem list, plus a Transfer section) and delivered as a SMART Health Link: the bundle is encrypted as a JWE (A256GCM) with a key per transfer, the link requires a passcode given on the physician-to-physician call, and it expires after 24 hours. Any SMART Health Links viewer opens it; the raw twin is never stored in the clear. It is a record of what happened during the transfer, not a clinical judgment: the AI never scores severity.
+
+## Insurance and the handoff twin: how it really works
+
+Insurance eligibility is a cheap, standards-based check that must never gate care; the "twin" is a transfer record built on two existing HL7 standards, not a simulation. Sources opened 2026-09-26; grades as above.
+
+**Eligibility (X12 270/271).** A real-time check returns coverage status, plan and network, copay, coinsurance, deductible and service-specific benefits; most complete in 1–2 seconds and nine in ten within 9 seconds ([Stedi docs](https://www.stedi.com/docs/healthcare/send-eligibility-checks), B). Stedi charges $0.30 per check at low volume down to $0.08 at scale with no minimum, and mock checks are free with a test key and fixed test member IDs ([pricing](https://www.stedi.com/pricing), [mock requests](https://www.stedi.com/docs/healthcare/api-reference/mock-requests-eligibility-checks), B). Mississippi Medicaid, the dominant payer in the Delta, accepts real-time and batch 270/271 through its fiscal agent Gainwell (companion guide dated May 21, 2026), plus the MESA portal and a phone line ([MESA](https://medicaid.ms.gov/mesa-portal-for-providers/), [companion guide](https://medicaid.ms.gov/wp-content/uploads/2026/05/20260531_MRP_Gainwell_EDI_v5010_X12_270-271_Companion_Guide.pdf), B). Most Medicaid plans treat children as separate subscribers rather than dependents (Stedi, B).
+
+**Rules that shape the design**
+
+| Rule | What it says | Design consequence |
+| --- | --- | --- |
+| EMTALA, 42 CFR 489.24(d)(4) | A hospital "may not delay providing an appropriate medical screening examination… in order to inquire about the individual's method of payment or insurance status" ([LII](https://www.law.cornell.edu/cfr/text/42/489.24), A) | The eligibility check never gates the search, the ranking or the acceptance; it runs after acceptance, or in parallel and non-blocking |
+| EMTALA, 42 CFR 489.24(e) | An appropriate transfer needs a physician's certification and a receiving facility that "has available space and qualified personnel" and "has agreed to accept transfer" (A) | Our Q1, Q2 and physician-to-physician acceptance are the law's own transfer conditions |
+| HIPAA, 45 CFR 164.506(c)(1), (c)(3) | PHI may be used for the entity's own payment activities and disclosed to another provider for that provider's payment activities without authorization ([LII](https://www.law.cornell.edu/cfr/text/45/164.506), A) | The check, and the Coverage resource inside the twin, are permitted |
+| No Surprises Act | Protects against surprise bills for most emergency services and out-of-network air ambulance ([CMS](https://www.cms.gov/newsroom/fact-sheets/no-surprises-understand-your-rights-against-surprise-medical-bills), A); ground ambulance is excluded, and half of emergency ground rides for privately insured patients are out of network ([KFF](https://www.kff.org/health-costs/issue-brief/ground-ambulance-rides-and-potential-for-surprise-billing/), B) | The twin records why air was chosen (ground time vs the window): the medical-necessity rationale payers ask for |
+| Medicare and Mississippi Medicaid ambulance rules | Medicare pays for air only when ground "couldn't provide" rapid transport, and only to the nearest facility ([Mississippi Insurance Dept](https://www.mid.ms.gov/mississippi-insurance-department/consumers/consumer-resources/air-ambulance-coverage-what-you-need-to-know/), A); Mississippi Medicaid's TREAT program has reimbursed emergency ambulance at average commercial rates since July 1, 2022 ([MS Medicaid](https://medicaid.ms.gov/transforming-reimbursement-for-emergency-ambulance-transportation-treat/), A) | Same rationale field; TREAT is a talking point for the EMS buyer |
+
+**What "digital twin" means in the market, and what ours is.** A 2025 review defines a healthcare digital twin as a physical system, its virtual representation and a bilateral data flow between them, used for simulation in cardiology, neurology, metabolic disease, oncology and trials, with validation and data integration as the bottlenecks ([Frontiers in Digital Health, 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12671388/), A). Twin Health sells a metabolic "Whole Body Digital Twin" built from sensor data and claims 71% of participants lowered A1C below 6.5% without glucose-lowering drugs except metformin ([Twin Health](https://usa.twinhealth.com/), B). Market-size estimates from research firms disagree by an order of magnitude and stay off the slides. Our handoff twin is not a simulation: it is a structured, encrypted record of the patient's transfer state, and the pitch says so.
+
+**The two standards it is built on**
+
+- International Patient Summary (HL7 FHIR IG v2.0.1): a "minimal and non-exhaustive patient summary dataset, specialty-agnostic, condition-independent, but readily usable by clinicians for the cross-border unscheduled care of a patient"; required sections are medications, allergies and problem list, recommended are immunizations, procedures, devices and diagnostic results ([IPS structure](https://hl7.org/fhir/uv/ips/ipsStructure.html), [design](https://hl7.org/fhir/uv/ips/design.html), B). Ours adds a Transfer section (every call, plan, rationale) and a Coverage resource.
+- SMART Health Links (HL7 IG): a link carrying a manifest URL with at least 256 bits of entropy and a 32-byte key; files encrypted as JWE with alg "dir" and enc "A256GCM"; flag P requires a passcode; exp marks the link stale; payloads include FHIR bundles ([specification](https://hl7.org/fhir/uv/smart-health-cards-and-links/links-specification.html), B). Implemented in `services/handoff`; the passcode is read to the accepting physician on the bridge call.
+- Later: TEFCA, with 11 designated QHINs including Epic Nexus, Oracle Health, CommonWell, eHealth Exchange and Surescripts ([RCE](https://rce.sequoiaproject.org/designated-qhins/), B), is the path to pull the patient's prior medications and allergies into the twin.
+
+**End to end.** Physician accepts → IPS bundle built → Stedi mock 270/271 → Coverage resource → JWE encryption → SMART Health Link with passcode and 24-hour expiry → link by SMS, passcode by voice → opened in any SHL viewer before the patient arrives.
+
+Not verified and left out: CMS's ground-ambulance advisory page (404), Stedi's Mississippi Medicaid payer page (404), Mississippi Medicaid's air-ambulance coverage rule (PDF not opened).
+
 
 ## Functional requirements
 
@@ -198,9 +227,9 @@ P0 must work live in the demo; P1 can be mocked; P2 goes on the roadmap slide.
 | FR-12 | Rank yeses by time to treatment (transport by recommended mode vs ready-in, plus handoff) | P0 |
 | FR-13 | Hold the top yes; release the other yeses by call or SMS on acceptance | P0 |
 | FR-14 | SMS case summary to the accepting physician; bridge a physician-to-physician call | P0 |
-| FR-15 | Build and encrypt the handoff twin (AES-256-GCM) on acceptance; show it on the dashboard | P0 |
-| FR-16 | Deliver the twin as a one-time link by SMS | P1 |
-| FR-17 | Insurance eligibility check in the twin via Stedi mock requests (test key, test member IDs) | P1 |
+| FR-15 | Build the handoff twin as an IPS bundle on acceptance and encrypt it as a SMART Health Link (JWE A256GCM, passcode, 24-hour expiry); show the QR, link and passcode on the dashboard | P0 |
+| FR-16 | Deliver the SMART Health Link by SMS; the passcode is given on the physician call | P1 |
+| FR-17 | Insurance eligibility (270/271) via Stedi mock requests, stored as a FHIR Coverage resource in the twin; never gates the search or the acceptance | P1 |
 | FR-18 | Write every answer with a timestamp to bed memory (DynamoDB, 30-min TTL) | P0 |
 | FR-19 | EMTALA log of every event and decision, exportable | P1 |
 | FR-20 | Transcripts: live speaker-labeled lines for A1, persona text for the rest; Q1/Q2 answers extracted; saved with the log | P0 |
@@ -236,12 +265,12 @@ flowchart TD
 | Simulated responder | Weighted random yes/no/no-answer/callback with specialty-specific reasons; two-persona transcript | `services/agent/app/responder.py` |
 | OpenAI synchronizer | Queue and retry for model calls; several at once, never strictly one at a time | `services/sync_openai` |
 | Collector | Receives the four events and full results, streams to the dashboard over WebSocket, writes bed memory and the EMTALA log | `services/collector` |
-| Handoff twin | Builds the record, encrypts it, runs the Stedi mock eligibility check, hands out a one-time link | `services/handoff` |
+| Handoff twin | Builds the IPS bundle, runs the Stedi mock eligibility check, encrypts it as a SMART Health Link with passcode and expiry | `services/handoff` |
 | Maps and drive times | AWS Location Service route calculator and map tiles; MapLibre in the browser | replaces the estimate model |
 | Data | DynamoDB: events (EMTALA log), bed memory with 30-min TTL, encrypted twins | `infra/aws/dynamodb-table.json` |
 | Fallback runner | Whole swarm as parallel workers in one process; App Runner or one EC2 box | `scripts/run_local_swarm.py`, `infra/aws/apprunner.yaml` |
 
-**Tech stack.** AWS (EKS, DynamoDB, Location Service, App Runner fallback) · OpenAI (orchestrator, personas, Realtime voice) · Twilio (voice, Media Streams, SMS) · Retell/Vapi (backup) · Stedi (eligibility, mock mode) · React + Vite + Tailwind + MapLibre · FastAPI.
+**Tech stack.** AWS (EKS, DynamoDB, Location Service, App Runner fallback) · OpenAI (orchestrator, personas, Realtime voice) · Twilio (voice, Media Streams, SMS) · Retell/Vapi (backup) · Stedi (eligibility, mock mode) · HL7 FHIR IPS + SMART Health Links (handoff twin) · React + Vite + Tailwind + MapLibre · FastAPI.
 
 **The four events** (`services/shared/schemas.py`): `call_started` → `call_answered` → `answer_recorded {bed, ready_in_min, reason}` → `call_ended {outcome}`, followed by a full `AgentResult` with transport estimate, time to treatment and transcript.
 
@@ -267,13 +296,15 @@ One call is real and the rest are simulated with the same agent code; the winner
 | A2–An answers | Simulated, weighted random | ~12% no answer, ~8% "call back in 5", yes at 45% (large centers) or 30% (others), specialty-specific decline reasons |
 | A2–An transcripts | Generated | Two OpenAI personas, short exchange |
 | Bed memory | Real | Written from every answer; second case shows a skip |
-| Handoff twin | Real encryption, fictional content | AES-256-GCM; shown decrypted on the dashboard |
+| Handoff twin | Real encryption, fictional content | SMART Health Link (JWE A256GCM) over an IPS bundle; QR, link and passcode on the dashboard |
 | Insurance check | Mock | Stedi test key and fixed test member IDs (free, no real payer) |
 | Accepting physician | Acted | A teammate on a second phone |
 | Dispatch | Mocked | Button plus SMS confirmation |
 | Patients | Fictional | Case 1: 62-year-old man, STEMI. Case 2: 68-year-old woman, large-vessel stroke |
 
 The agent never calls a real hospital during the hackathon; every phone number in the run is a teammate's.
+
+**A1 and the teammate script.** A1 is Greenville, the only center inside the heart-attack window by road. The teammate confirms a cardiac ICU bed and a cath lab team, says "ready in about 10 minutes" and stays natural. If they say yes, Greenville wins on time (42 min drive, 10 min ready, 10 min handoff) whatever the simulated centers answer; if they say no, the swarm's next yes wins, which is also a fine demo. Simulated agents resolve over 5–45 seconds so the map fills in visibly.
 
 ## Dashboard
 
@@ -285,7 +316,7 @@ A dark map in the middle, live call cards on the right, one recommendation at th
 | Map (about 60%) | Indianola in the center; one line per agent to a real center; ground lines solid, air lines with a helicopter icon; centers outside the window greyed and dashed | Click a pin to open its card |
 | Cards (about 40%) | Agent id, hospital, status in words, ready time, transport mode and minutes, tier, one line of live transcript; greens rise to the top | Click for the full transcript |
 | Recommendation | Best center, time to treatment, mode; buttons Accept & release others, Choose another | Accept fires hold/release, SMS, physician bridge, twin |
-| Twin panel | The decrypted handoff twin after acceptance, with the insurance line | Copy link (one-time) |
+| Twin panel | The handoff twin after acceptance: QR and SMART Health Link, passcode, insurance line; the Marco Polo clock stops on Accept | Copy link (one-time) |
 | Footer | Live tech counters (Realtime on call, GPT summaries, Location routes, DynamoDB events) and the label "Demo: hospital responses are simulated" | None |
 
 **Status colors** (always paired with a word and an icon)
@@ -314,6 +345,8 @@ Every existing product either serves the receiving hospital, works inside one ne
 | [Pulsara Transfer Ops](https://www.pulsara.com/transfer-operations) | Secure messaging that replaces phone calls between agencies and facilities | Hospitals, EMS, transfer centers | Does not search for beds or call other hospitals |
 | [Juvare EMResource](https://www.globenewswire.com/news-release/2026/08/27/3352317/0/en/juvare-partners-with-healthcare-association-of-hawaii-to-power-statewide-healthcare-capacity-visibility.html) | Statewide bed-capacity dashboards (Hawaii, Aug 2026; refresh every 15 min) | States, hospital associations | Visibility only; nobody makes the calls |
 | [VectorCare](https://www.vectorcare.com/feeds/blog/patient-management-software) | Transport and post-acute logistics | Hospitals, transport vendors | No bed search |
+| [Oregon Medical Coordination Center](https://www.ohsu.edu/health/oregon-medical-coordination-center) | State-funded OHA–hospital collaboration; 24-hour line to place a patient "when their usual referral pathways aren't available"; uses real-time data and works with transfer centers to find beds | State (Oregon, SW Washington) | Staffed phone service, one state; a customer for the swarm |
+| [Washington Medical Coordination Center](https://www.cambridge.org/core/journals/disaster-medicine-and-public-health-preparedness/article/statewide-patient-load-balancing-work-of-washington-states-medical-operations-coordination-center/73C062A9473899199746E802F34B610E) | Statewide patient load balancing run by UW Emergency Medicine and Harborview since March 2020; 3,821 hospital requests by April 21, 2022 | State | Staffed, one state; a customer |
 | [Indiana MOCC](https://www.in.gov/grow-rural-health/initiatives/initiative-1) | 24/7 statewide transfer-coordination hub under the Rural Health Transformation Program; trauma, stroke, psychiatric, maternal; bids closed June 15, 2026 | State | A staffed call center for one state; proof that transfer coordination is now funded |
 | [Aurelian, Hyper](https://techcrunch.com/2025/08/27/911-centers-are-so-understaffed-theyre-turning-to-ai-to-answer-calls) | AI voice agents for 911 non-emergency calls; $14M Series A led by NEA, $6.3M seed | 911 centers | Inbound and non-emergency, not hospital-to-hospital |
 
@@ -362,6 +395,18 @@ One real call working end to end by 12:00 on the day is the only hard gate; ever
 - `data/hospitals.json`: verified centers, graded sources, survival windows, transport tiers, demo cases.
 - Shared schemas, orchestrator selection and ranking, simulated responder, four-event emitter, collector with WebSocket stream and in-memory bed memory, handoff twin service with encryption and Stedi hook, dashboard skeleton, Kubernetes job template, App Runner fallback, DynamoDB table definition, local swarm runner, docs.
 
+**Event logistics** (from the team action plan of Sep 25, 2026; not web-verified)
+
+| What | Detail |
+| --- | --- |
+| When | Saturday, September 26, 2026, 10:00–17:00 PDT |
+| Where | AWS Builder Loft, First Market Tower, 525 Market St, Floor 2, San Francisco; main ground-floor entrance (not the terrace), far-left elevator bank |
+| Registrations | Luma (approved) and the separate AWS Builder Loft registration |
+| ID | Physical government photo ID, 18+; digital IDs not accepted |
+| Getting there | No bikes or scooters inside; no on-site parking |
+| Bring | Chargers, a power strip, a Bluetooth speaker for the live call, a phone hotspot as Wi-Fi backup |
+| Sponsors to name | OpenAI and AWS (tech), J.P. Morgan (financing), Troutman Pepper (legal and compliance) |
+
 **Before the event**
 
 | Task | Done when |
@@ -396,12 +441,27 @@ The biggest risk is the live call failing on stage; a recorded backup run covers
 | EKS setup eats the day | Same container on App Runner or one EC2 box; the local runner for the demo; say so on the architecture slide |
 | Venue Wi-Fi or phone signal fails | Phone hotspot; play the backup video |
 | Twilio trial blocks the call | Verify teammates' numbers the night before, or add credit |
-| Rate limits during the demo | Only one real call; simulated agents stagger over 20–60 s |
+| Rate limits during the demo | Only one real call; simulated agents stagger over 5–45 s |
 | AI talks over the teammate | Rehearse; keep the teammate's lines short |
 | Judge: "that's just concurrency" | Lead with the outcome, the survival window, bed memory and the twin |
 | Judge: "that's Viz.ai" | Viz is stroke only and inside one network; we cover every ICU specialty across networks |
 | Judge: "AI kills patients" (Brazil) | The Brazil system scored severity; ours never does; a physician accepts every transfer |
 | Weakest data points questioned | Merit Health Central's cardiac source is the thinnest; St. Dominic cardiac and CHI St. Vincent cardiac/stroke are unverified and not used |
+
+**Judge questions and answers**
+
+| Question | Answer |
+| --- | --- |
+| Will hospitals talk to an AI caller? | It discloses itself and asks the same two availability questions a transfer nurse asks today; every acceptance is physician to physician |
+| Isn't calling everyone spam? | Only centers with the capability, inside the survival window; every other yes is released the moment a physician accepts, so no bed sits on hold |
+| Is 90 seconds realistic? | Total time is the slowest single call, not the sum; "call back in five" is accepted and scheduled |
+| Who pays? | Rural health networks and EMS agencies on a flat monthly subscription; states are already funding transfer coordination (Indiana) |
+| Don't states already do this? | Oregon and Washington run statewide coordination centers and Indiana is buying one; their nurses still find beds by working the phones, which makes them customers |
+| Is this safe? | No severity scoring, physicians accept every transfer, a full EMTALA log, fictional data in the demo, BAAs in production |
+| Why Kubernetes? | Each hospital's agent runs in its own sandboxed pod from one image, so 10 or 100 centers scale the same way; App Runner is the fallback |
+| Isn't this just concurrency? | The outcome is the point: a survival-window search no person can run in parallel, a bed memory built from the calls, and a record that travels with the patient |
+| Isn't this Viz.ai? | Viz is stroke only, inside one network; we cover every ICU specialty across networks and state lines |
+| Didn't an AI bed system kill someone in Brazil? | That system scored severity; ours never does, and a physician makes every decision |
 
 **Open questions**
 
@@ -412,3 +472,5 @@ The biggest risk is the live call failing on stage; a recorded backup run covers
 - [ ] Pricing: [$__ per hospital per month] for rural networks and an EMS agency tier.
 - [ ] Product name: "Marco Polo" is also a video-messaging app; fine for the hackathon, check before company use.
 - [ ] Add a second, smaller sending hospital (a critical access hospital such as North Sunflower Medical Center, Ruleville) as a backup demo start point.
+- [ ] Stedi: confirm the Mississippi Medicaid payer ID, or connect to Gainwell's 270/271 directly for production.
+- [ ] Pick a SMART Health Links viewer for the demo, or embed a minimal one in the dashboard.

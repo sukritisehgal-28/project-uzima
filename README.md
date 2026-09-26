@@ -16,7 +16,7 @@ An AI agent swarm that finds an accepting ICU for a critical patient leaving a r
 | `services/sync_openai/` | Rate limiter for model calls |
 | `services/sync_twilio/` | Twilio Voice + Media Streams ↔ OpenAI Realtime, SMS, physician bridge (own cluster) |
 | `services/collector/` | Receives events/results, streams to the dashboard, bed memory, EMTALA log |
-| `services/handoff/` | Encrypted patient handoff twin + Stedi mock insurance check |
+| `services/handoff/` | Patient handoff twin: HL7 IPS bundle delivered as a SMART Health Link (JWE A256GCM, passcode, 24 h expiry), with a Stedi mock insurance check |
 | `apps/dashboard/` | React + Vite + Tailwind + MapLibre live map |
 | `infra/` | Kubernetes Job template, App Runner fallback, DynamoDB table |
 | `scripts/run_local_swarm.py` | Whole swarm in one process, no network: `python3 scripts/run_local_swarm.py cardiac_icu` |
@@ -72,7 +72,7 @@ sequenceDiagram
 | Stroke, large-vessel | 90 min | 240 min |
 | Trauma (adult, burn, pediatric) | 60 min | 90 min |
 
-**Deployment.** EKS for the swarm and services; the Twilio synchronizer in its own cluster; DynamoDB for memory, log and twins; AWS Location for routing and tiles; App Runner (or one EC2 box) and `scripts/run_local_swarm.py` as the no-Kubernetes fallback. Live voice Option A is Twilio Media Streams + OpenAI Realtime; Option B (fallback) is a Retell or Vapi agent on an OpenAI model.
+**Deployment.** EKS for the swarm and services; the Twilio synchronizer in its own cluster; DynamoDB for memory, log and twins; AWS Location for routing and tiles; App Runner (or one EC2 box) and `scripts/run_local_swarm.py` as the no-Kubernetes fallback. Live voice Option A is Twilio Media Streams + OpenAI Realtime; Option B (fallback) is a Retell or Vapi agent on an OpenAI model. The handoff twin is an IPS-shaped FHIR bundle encrypted as a SMART Health Link; the eligibility check (X12 270/271) runs after acceptance and never gates the transfer (EMTALA 42 CFR 489.24(d)(4)).
 
 ## Rules
 - A1 is a real call to a teammate's phone. Every other agent runs the same code against a simulated responder.

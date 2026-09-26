@@ -115,3 +115,4 @@ class HandoffTwin(BaseModel):
     insurance: Optional[InsuranceCheck] = None
     created_at: datetime
     emtala_log_ref: str
+    shlink: Optional[str] = None            # SMART Health Link to the encrypted IPS bundle

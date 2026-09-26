@@ -13,7 +13,7 @@ LARGE = {"ummc", "baptist_memphis", "methodist_university", "uams", "baptist_lit
 def run(header: AgentHeader) -> None:
     now = lambda: datetime.now(timezone.utc)
     emit("call_started", header.agent_id, header.hospital_id)
-    time.sleep(random.uniform(3, 12))  # stagger so the map fills in over 20-60 s
+    time.sleep(random.uniform(5, 45))  # stagger so the map fills in over 5-45 s and stays under rate limits
     answer = respond(header.specialty.value, header.hospital_id in LARGE)
     lines = [TranscriptLine(speaker="agent", at=now(), text=(
         "Hi, this is an AI transfer assistant calling for South Sunflower County Hospital. This call is recorded. "
