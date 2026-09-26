@@ -81,12 +81,13 @@ export default function App() {
       setSending(d.sending);
       setNames(Object.fromEntries(d.centers.map((c: any) => [c.id, c.short_name ?? c.name])));
       setWindows(Object.fromEntries(Object.entries(d.demo_cases).map(([k, v]: [string, any]) => [k, d.windows[v.window]])));
-    }).catch(() => setError("The orchestrator is not reachable on port 8000. Run make dev."));
+    }).catch(() => setError("The demo backend is unavailable. Keep the host laptop and tunnel running."));
     getHealth().then((h) => setLiveCalls(h?.integrations?.twilio === "live")).catch(() => {});
   }, []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
 
   useEffect(() => {
+    if (!WS) return; // Hosted demo uses the existing status polling instead.
     const ws = new WebSocket(WS);
     ws.onmessage = (m) => {
       const e = JSON.parse(m.data);
