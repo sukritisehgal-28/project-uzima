@@ -108,9 +108,14 @@ async def call(req: CallRequest):
     if not config.has_twilio():
         return _mock("call", to=req.header.get("phone"), agent=req.header.get("agent_id"))
     public = config.env("PUBLIC_HOST")   # ngrok host, e.g. abcd.ngrok-free.app
-    twiml = (f'<Response><Connect><Stream url="wss://{public}/media">'
+    sending = config.env("SENDING_HOSPITAL_NAME", "South Sunflower County Hospital")
+    greeting = f"Hello, this is an AI assistant calling for {sending} about a patient transfer. Please hold one moment."
+    twiml = (f'<Response>'
+             f'<Say>{escape(greeting)}</Say>'
+             f'<Connect><Stream url="wss://{public}/media">'
              f'<Parameter name="transfer_id" value="{escape(req.transfer_id)}"/>'
-             f'<Parameter name="agent_id" value="{escape(req.header["agent_id"])}"/></Stream></Connect></Response>')
+             f'<Parameter name="agent_id" value="{escape(req.header["agent_id"])}"/>'
+             f'</Stream></Connect></Response>')
     r = await _twilio("Calls.json", {"To": req.header["phone"], "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml)})
     live_calls[(req.transfer_id, agent_id)]["call_sid"] = r.get("sid")
     return {"mode": "live", "sid": r.get("sid")}
@@ -287,8 +292,8 @@ class Bridge:
         self.later(self._watchdog())
         try:
             if not config.has_openai():
-                log.warning("OPENAI_API_KEY missing: live call has no voice; hanging up as no_answer")
-                await self.hangup()
+                log.warning("OPENAI_API_KEY missing: live call has no voice; playing apology")
+                await self.play_apology_and_hangup()
                 await self._from_twilio()
             else:
                 await self._bridge()
@@ -309,8 +314,8 @@ class Bridge:
             conn = _openai_connect()
             self.oai = await conn
         except Exception as e:
-            log.error("could not connect to OpenAI Realtime: %s", e)
-            await self.hangup()
+            log.error("could not start OpenAI Realtime session: %s", e)
+            await self.play_apology_and_hangup()
             await self.close_ws()
             return
         await self._setup()
@@ -472,6 +477,23 @@ class Bridge:
         if self.report is None and not self.finishing:
             log.warning("no report after %ss; hanging up", MAX_CALL_S)
             await self.finish_talking()
+
+    async def play_apology_and_hangup(self) -> None:
+        """Play a short apology when the OpenAI Realtime session fails to START.
+        Must only be called before a Realtime session has been established.
+        Never call after a healthy Realtime session has already begun."""
+        apology = (
+            "We are sorry, we encountered a technical difficulty and cannot complete this call. "
+            "Please try again shortly. Goodbye."
+        )
+        twiml = f"<Response><Say>{escape(apology)}</Say><Hangup/></Response>"
+        if self.call_sid and config.has_twilio():
+            try:
+                await _twilio(f"Calls/{self.call_sid}.json", {"Url": _twiml_url(twiml)})
+                return
+            except Exception as e:
+                log.warning("apology TwiML update failed (%s); falling back to silent hangup", e)
+        await self.hangup()
 
     async def hangup(self) -> None:
         if not (self.call_sid and config.has_twilio()):

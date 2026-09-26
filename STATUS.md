@@ -19,6 +19,7 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 | 11 | Patient handoff: encrypted record + transfer ticket (web + Apple Wallet) | Screen | Sukriti + Claude Code | done | 13:35 | Ticket at /tickets/{id} (its QR opens the record), viewer at /view, EMTALA handoff content with fictional demo data. Wallet needs the APPLE_* certificate; phones need an https tunnel to 8004 and HANDOFF_PUBLIC_URL |
 | 12 | OpenAI text generation through AWS Bedrock | Core / Voice integration | Udit + Codex | done | 13:53 | Live GPT OSS 20B text and three persona scenarios verified in us-west-2; enabled locally. 58 tests pass after merging teammate updates. Voice adaptation remains separate |
 | 13 | High-risk childbirth case: verified birthing hospitals with a NICU | Screen | Sukriti + Claude Code | done | 13:57 | Dropdown option, call question, fictional demo patient, verified hospitals with sources; window 60/120 is a demo default |
+| 14 | Resolve Sakshi voice PR #4 against current main | Core / Voice integration | Udit + Codex | done | 14:09 | Merged current main into voice branch; retained both test suites. All 62 tests pass; live-call verification remains pending |
 
 ## Checkpoints
 
@@ -55,4 +56,7 @@ Newest at the bottom. One line each: time, who, message.
 - 13:57 Sukriti + Claude Code: Added the high-risk childbirth case. Other-lane touches: `Specialty.childbirth` in schemas.py (additive), its capability question in orchestrator QUESTION, decline reasons in agent/responder.py, one SPECIALTY_NEED line in sync_twilio, and a `childbirth` capability plus 3 new birthing hospitals (Baptist Women's Memphis, Merit Woman's Flowood, Bolivar Medical Cleveland) in data/hospitals.json, each with a source.
 - 13:57 Sukriti: Dashboard now uses a case dropdown, floating case and clock cards on the map (like the mockups, in white), bigger green pins, and no pulsing on the other pins.
 - 13:58 Sukriti: Removed the record passcode (team decision): the ticket's QR code opens the encrypted record, which still expires after 24 h. The spoken summary no longer reads a passcode; it says the transfer ticket travels with the patient (one line in orchestrator accept). tests/test_e2e.py updated to match.
+
+- 14:08 Udit + Codex: Udit requested resolving Sakshi PR #4. Merging current main into the voice branch; the only conflict is tests/test_bridge.py. Keeping both test suites, Bedrock setup, childbirth case and the updated handoff contract. No live calls are part of this verification.
+- 14:09 Udit + Codex: PR #4 conflict resolved by combining the test imports and retaining all greeting/startup-apology, explicit-confirmation and Connect fallback tests. The production merge preserves the current Bedrock, childbirth and passcode-free handoff changes. All 62 offline tests pass; no real calls placed.
 - 14:38 Sukriti: Renamed the GitHub repo to sukritisehgal-28/project-uzima (old URLs redirect). Update your remote: git remote set-url origin git@github.com:sukritisehgal-28/project-uzima.git. Added docs/SUBMISSION.md (Udit's submission text with the passcode removed, the transfer ticket, Bedrock and the three live phones).
