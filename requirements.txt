@@ -1,0 +1,10 @@
+# Everything needed to run all services locally and the tests.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+httpx>=0.27
+cryptography>=42
+pytest>=8
+# Optional, only when USE_AWS=1 / LAUNCH_MODE=k8s:
+# boto3>=1.34
+# kubernetes>=29

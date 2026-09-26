@@ -21,7 +21,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from services.shared.schemas import AgentResult, Case, InsuranceCheck, TransportEstimate
+from services.shared import config
+from services.shared.schemas import AgentResult, Case, InsuranceCheck, TransportEstimate, TwinRequest
 
 app = FastAPI(title="Marco Polo handoff twin")
 STEDI = "https://healthcare.us.stedi.com/2024-04-01/change/medicalnetwork/eligibility/v3"
@@ -114,15 +115,6 @@ def decrypt_shl(jwe: str, key_b64url: str) -> dict:
     return json.loads(data)
 
 
-class TwinRequest(BaseModel):
-    case: Case
-    accepted_hospital_id: str
-    accepting_physician: str
-    transport: TransportEstimate
-    calls: list[AgentResult]
-    insurance_test: Optional[dict] = None   # {"payer_id","member_id","first","last","dob"} -> Stedi mock member only
-
-
 class ManifestRequest(BaseModel):
     recipient: str
     passcode: Optional[str] = None
@@ -131,13 +123,20 @@ class ManifestRequest(BaseModel):
 @app.post("/twins")
 def build_twin(req: TwinRequest):
     insurance = None
-    if req.insurance_test and os.getenv("STEDI_TEST_API_KEY"):
-        insurance = check_insurance(**req.insurance_test)
+    if req.insurance_test and config.has_stedi():
+        try:
+            insurance = check_insurance(**req.insurance_test)       # Stedi test key + documented mock member
+        except Exception:
+            insurance = None
+    if insurance is None:                                       # offline mock so the demo never depends on it
+        insurance = InsuranceCheck(payer="Mississippi Medicaid (offline mock)", member_id_masked="***0000", active=True,
+                                   plan="demo", checked_at=datetime.now(timezone.utc), source="offline-mock")
     bundle = ips_bundle(req.case, req.accepted_hospital_id, req.accepting_physician, req.transport, req.calls, insurance)
     passcode = f"{secrets.randbelow(10**6):06d}"          # read to the accepting physician on the bridge call, sent separately
     twin_id, link = make_shl(bundle, passcode)
     # TODO(FR-16): SMS the link via sync_twilio; TODO: persist _store[twin_id] to DynamoDB
-    return {"twin_id": twin_id, "shlink": link, "passcode": passcode, "sections": [s["title"] for s in bundle["entry"][0]["resource"]["section"]]}
+    return {"twin_id": twin_id, "shlink": link, "passcode": passcode, "insurance": insurance.model_dump(mode="json"),
+            "sections": [s["title"] for s in bundle["entry"][0]["resource"]["section"]]}
 
 
 @app.post("/manifests/{twin_id}")
@@ -152,4 +151,4 @@ def manifest(twin_id: str, req: ManifestRequest):
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    return {"ok": True, "insurance": "stedi" if config.has_stedi() else "offline-mock", "twins": len(_store)}

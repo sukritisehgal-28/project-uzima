@@ -1,15 +1,15 @@
-"""Results collector: receives the four call events and full results, streams them to the dashboard, writes bed memory."""
-import os
-from collections import defaultdict
+"""Collector: receives the four call events, full results and transfer events; streams them to the dashboard;
+keeps bed memory and the EMTALA log (memory, or DynamoDB write-through when AWS is on)."""
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi import FastAPI, WebSocket
-
-from services.shared.schemas import AgentResult, CallEvent
+from services.collector.app.storage import make_store
+from services.shared.schemas import AgentResult, CallEvent, TransferEvent
 
 app = FastAPI(title="Marco Polo collector")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+store = make_store()
 _clients: set[WebSocket] = set()
-_memory: dict[str, dict] = {}                 # hospital_id -> last answer (bed memory); DynamoDB in production
-_events: dict[str, list] = defaultdict(list)  # hospital_id -> events (EMTALA log)
 
 
 async def _broadcast(payload: dict) -> None:
@@ -22,28 +22,51 @@ async def _broadcast(payload: dict) -> None:
 
 @app.post("/events")
 async def post_event(ev: CallEvent):
-    _events[ev.hospital_id].append(ev.model_dump(mode="json"))
-    await _broadcast({"kind": "event", **ev.model_dump(mode="json")})
+    d = ev.model_dump(mode="json")
+    store.add_event(d)
+    await _broadcast({"kind": "event", **d})
     return {"ok": True}
 
 
 @app.post("/results")
 async def post_result(result: AgentResult):
-    _memory[result.hospital_id] = {"status": result.status.value, "ready_in_min": result.ready_in_min,
-                                   "reason": result.decline_reason, "at": result.answered_at.isoformat() if result.answered_at else None}
-    # TODO(FR-14): persist to DynamoDB table os.getenv("DYNAMODB_TABLE") with a 30-minute TTL
-    await _broadcast({"kind": "result", **result.model_dump(mode="json")})
+    d = result.model_dump(mode="json")
+    store.add_result(d)
+    await _broadcast({"kind": "result", **d})
     return {"ok": True}
+
+
+@app.post("/transfer-events")
+async def post_transfer_event(ev: TransferEvent):
+    d = ev.model_dump(mode="json")
+    store.add_transfer_event(d)
+    await _broadcast({"kind": "transfer", **d})
+    return {"ok": True}
+
+
+@app.get("/transfers/{transfer_id}/results")
+def transfer_results(transfer_id: str):
+    return list(store.results.get(transfer_id, {}).values())
+
+
+@app.get("/transfers/{transfer_id}/events")
+def transfer_events(transfer_id: str):
+    return {"calls": store.events.get(transfer_id, []), "transfer": store.transfer_events.get(transfer_id, [])}
 
 
 @app.get("/memory")
 def memory():
-    return _memory
+    return store.memory
 
 
 @app.get("/log/{hospital_id}")
 def log(hospital_id: str):
-    return _events.get(hospital_id, [])
+    return store.by_hospital.get(hospital_id, [])
+
+
+@app.get("/health")
+def health():
+    return {"ok": True, "storage": store.mode, "clients": len(_clients)}
 
 
 @app.websocket("/stream")
@@ -53,5 +76,7 @@ async def stream(ws: WebSocket):
     try:
         while True:
             await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
     finally:
         _clients.discard(ws)

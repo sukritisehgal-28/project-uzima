@@ -25,6 +25,28 @@ An AI agent swarm that finds an accepting ICU for a critical patient leaving a r
 | `scripts/replay_fixture.py` + `data/fixtures/` | Replay sample events into the collector so the dashboard moves without a live call |
 | `docs/` | PRD, pitch deck text, team plan, verified numbers with grades, competitors, demo script |
 
+## Run it
+
+Everything runs locally with **no keys**: every integration has a mock, and adding its key to `.env` switches it on.
+
+```bash
+make install          # Python venv + dashboard packages
+make test             # 7 tests, including the whole flow end to end in one process
+make dev              # all services + dashboard; open http://localhost:5173 and press "Find a bed"
+make smoke            # (with make dev running) start a transfer, wait for answers, accept, print the twin link
+```
+
+| Service | Port | Without keys | Switches to live when `.env` has |
+| --- | --- | --- | --- |
+| Orchestrator | 8000 | Swarm runs in-process | `LAUNCH_MODE=k8s` (one Job per hospital); `USE_AWS=1` + `AWS_LOCATION_ROUTE_CALCULATOR` for road times |
+| OpenAI gateway | 8001 | Template transcripts | `OPENAI_API_KEY`, `OPENAI_MODEL` |
+| Twilio gateway | 8002 | Logs calls/SMS to `/outbox` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `PUBLIC_HOST` (ngrok), `DEMO_*_PHONE` |
+| Collector | 8003 | In memory | `USE_AWS=1` + `DYNAMODB_TABLE` |
+| Handoff twin | 8004 | Offline insurance mock | `STEDI_TEST_API_KEY` + `STEDI_MOCK_*` (Stedi's documented mock member) |
+| Dashboard | 5173 | MapLibre demo tiles | `VITE_MAP_STYLE` (AWS Location map style URL) |
+
+`GET localhost:8000/health` shows which integrations are live. `SIM_A1_ANSWER=available` makes A1 say yes when there is no live call; `SIM_TIME_SCALE=0` makes simulated answers instant.
+
 ## Architecture
 
 One agent template runs as N isolated pods on Amazon EKS; only the header (hospital, phone, location, capability question, transport tier) changes per pod. Every call path emits the same four events, so the voice provider can be swapped without touching the dashboard.

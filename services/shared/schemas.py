@@ -74,6 +74,7 @@ class TranscriptLine(BaseModel):
 # without touching the dashboard. A full AgentResult follows call_ended.
 class CallEvent(BaseModel):
     type: Literal["call_started", "call_answered", "answer_recorded", "call_ended"]
+    transfer_id: str = ""
     agent_id: str
     hospital_id: str
     at: datetime
@@ -81,6 +82,7 @@ class CallEvent(BaseModel):
 
 
 class AgentResult(BaseModel):
+    transfer_id: str = ""
     agent_id: str
     hospital_id: str
     hospital: str
@@ -116,3 +118,26 @@ class HandoffTwin(BaseModel):
     created_at: datetime
     emtala_log_ref: str
     shlink: Optional[str] = None            # SMART Health Link to the encrypted IPS bundle
+
+
+class TransferEvent(BaseModel):
+    """Transfer-level events for the dashboard (the four call events stay per agent)."""
+    transfer_id: str
+    type: Literal["search_started", "held", "released", "accepted", "twin_ready"]
+    hospital_id: Optional[str] = None
+    at: datetime
+    data: dict = Field(default_factory=dict)
+
+
+class AcceptRequest(BaseModel):
+    hospital_id: Optional[str] = None           # default: the recommended center
+    accepting_physician: str = "[accepting physician]"
+
+
+class TwinRequest(BaseModel):
+    case: Case
+    accepted_hospital_id: str
+    accepting_physician: str
+    transport: TransportEstimate
+    calls: list[AgentResult]
+    insurance_test: Optional[dict] = None       # Stedi mock member only: {"payer_id","member_id","first","last","dob"}

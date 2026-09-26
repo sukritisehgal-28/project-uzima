@@ -1,18 +1,28 @@
-"""Orchestrator: case summary, center selection, bed memory, swarm launch, ranking, hold and release."""
+"""Orchestrator: survival-window selection, bed-memory skip, swarm launch, ranking, hold and release, handoff twin."""
 import json
 import os
+import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
-from services.shared.schemas import AgentHeader, Case, Specialty, TransportEstimate
+from services.orchestrator.app.launcher import get_launcher
+from services.orchestrator.app.routing import transport
+from services.shared import config
+from services.shared.clients import client
+from services.shared.schemas import AcceptRequest, AgentHeader, AgentResult, Case, Specialty, TransferEvent, TwinRequest
 
 app = FastAPI(title="Marco Polo orchestrator")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 DATA = json.loads((Path(__file__).resolve().parents[3] / "data" / "hospitals.json").read_text())
 CENTERS = {c["id"]: c for c in DATA["centers"]}
 HANDOFF_MIN = 10
+MEMORY_TTL_S = 30 * 60
 SWARM_TIMEOUT = int(os.getenv("SWARM_TIMEOUT_SECONDS", "90"))
+TRANSFERS: dict[str, dict] = {}
 
 QUESTION = {
     Specialty.cardiac_icu: "Do you have a cardiac ICU bed and a cath lab team available right now?",
@@ -23,42 +33,116 @@ QUESTION = {
 }
 
 
-def select_centers(specialty: Specialty, memory: dict | None = None) -> list[AgentHeader]:
-    """Every capable center inside the survival window, nearest first; skips centers memory says are full."""
+def select_centers(specialty: Specialty, memory: dict | None = None, override_outside: bool = False) -> list[AgentHeader]:
+    """Every capable center inside the survival window, nearest first; skips centers that said no in the last 30 min."""
     case = DATA["demo_cases"][specialty.value]
+    window = DATA["windows"][case["window"]]
+    now, picked = time.time(), []
+    for cid in case["center_ids"]:
+        t = transport(DATA["sending"], CENTERS[cid], window)
+        if t.tier == "outside" and not override_outside:
+            continue
+        m = (memory or {}).get(cid)
+        if m and m.get("status") == "declined" and now - m.get("ts", 0) < MEMORY_TTL_S:
+            continue
+        picked.append((cid, t))
+    if not picked and memory:            # nothing left after memory skips: call everyone in the window again
+        return select_centers(specialty, None, override_outside)
     headers = []
-    for i, cid in enumerate(case["called_by_default"], start=1):
-        if memory and memory.get(cid, {}).get("status") == "declined":
-            continue  # FR: bed memory - skip a center that said full in the last 30 min
+    for i, (cid, t) in enumerate(picked, start=1):
         c = CENTERS[cid]
-        e = case["eligibility"][cid]
-        headers.append(AgentHeader(
-            agent_id=f"A{i}", hospital_id=cid, hospital=c["name"], phone=os.getenv("DEMO_HOSPITAL_PHONE", "[demo phone]"),
-            lat=c["lat"], lng=c["lng"], specialty=specialty, capability_question=QUESTION[specialty],
-            transport=TransportEstimate(est_ground_min=c["est_ground_min"], est_air_min=c["est_air_min"],
-                                        recommended_mode=e["mode"], tier=e["tier"]),
-            live=(i == 1),
-        ))
+        headers.append(AgentHeader(agent_id=f"A{i}", hospital_id=cid, hospital=c["name"], lat=c["lat"], lng=c["lng"],
+                                   phone=config.env("DEMO_HOSPITAL_PHONE", "[demo phone]") if i == 1 else "[simulated]",
+                                   specialty=specialty, capability_question=QUESTION[specialty], transport=t, live=(i == 1)))
     return headers
 
 
-def treatment_start(transport: TransportEstimate, ready_in_min: int) -> int:
-    t = transport.est_ground_min if transport.recommended_mode == "ground" else transport.est_air_min
-    return max(t, ready_in_min) + HANDOFF_MIN
+def rank(results: list[dict]) -> list[dict]:
+    yes = [r for r in results if r["status"] == "available" and r.get("treatment_start_min") is not None]
+    return sorted(yes, key=lambda r: (r["treatment_start_min"], min(r["transport"]["est_ground_min"], r["transport"]["est_air_min"])))
+
+
+async def _tevent(tid: str, kind: str, hospital_id: str | None = None, **data) -> None:
+    ev = TransferEvent(transfer_id=tid, type=kind, hospital_id=hospital_id, at=datetime.now(timezone.utc), data=data)
+    async with client("collector") as c:
+        await c.post("/transfer-events", json=ev.model_dump(mode="json"))
+
+
+async def _results(tid: str) -> list[dict]:
+    async with client("collector") as c:
+        return (await c.get(f"/transfers/{tid}/results")).json()
+
+
+@app.post("/transfers")
+async def start_transfer(case: Case, background: BackgroundTasks):
+    try:
+        async with client("collector") as c:
+            memory = (await c.get("/memory")).json()
+    except Exception:
+        memory = {}
+    headers = select_centers(case.specialty, memory)
+    tid = uuid.uuid4().hex[:10]
+    TRANSFERS[tid] = {"case": case, "headers": headers, "started": time.time(), "state": "searching"}
+    await _tevent(tid, "search_started", agents=[h.model_dump(mode="json") for h in headers],
+                  window=DATA["windows"][DATA["demo_cases"][case.specialty.value]["window"]])
+    background.add_task(get_launcher().launch, tid, headers)
+    return {"transfer_id": tid, "agents": [h.model_dump(mode="json") for h in headers]}
+
+
+@app.get("/transfers/{tid}")
+async def transfer_status(tid: str):
+    t = TRANSFERS.get(tid) or HTTPException(404)
+    if isinstance(t, HTTPException):
+        raise t
+    results = await _results(tid)
+    elapsed = time.time() - t["started"]
+    ranking = rank(results)
+    done = len(results) >= len(t["headers"]) or elapsed > SWARM_TIMEOUT
+    return {"transfer_id": tid, "state": t["state"], "elapsed_s": round(elapsed, 1), "agents": len(t["headers"]),
+            "answered": len(results), "done": done, "results": results, "ranking": ranking,
+            "recommendation": ranking[0] if ranking else None, "twin": t.get("twin")}
+
+
+@app.post("/transfers/{tid}/accept")
+async def accept(tid: str, req: AcceptRequest):
+    t = TRANSFERS.get(tid)
+    if not t:
+        raise HTTPException(404)
+    results = await _results(tid)
+    ranking = rank(results)
+    chosen = next((r for r in ranking if r["hospital_id"] == req.hospital_id), None) if req.hospital_id else (ranking[0] if ranking else None)
+    if not chosen:
+        raise HTTPException(409, "no available center to accept yet")
+    t["state"] = "accepted"
+    await _tevent(tid, "held", chosen["hospital_id"])
+    async with client("sync_twilio") as c:
+        for r in ranking:
+            if r["hospital_id"] != chosen["hospital_id"]:
+                await c.post("/release", json={"hospital": r["hospital"], "phone": config.env("DEMO_HOSPITAL_PHONE", "[demo phone]")})
+                await _tevent(tid, "released", r["hospital_id"])
+        await c.post("/bridge", json={"a": config.env("DEMO_SENDING_DOCTOR_PHONE", "[sending doctor]"),
+                                      "b": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
+    await _tevent(tid, "accepted", chosen["hospital_id"], accepting_physician=req.accepting_physician)
+    insurance = None
+    if config.env("STEDI_MOCK_MEMBER_ID"):
+        insurance = {k: config.env(f"STEDI_MOCK_{k.upper()}") for k in ("payer_id", "member_id", "first", "last", "dob")}
+    twin_req = TwinRequest(case=t["case"], accepted_hospital_id=chosen["hospital_id"], accepting_physician=req.accepting_physician,
+                           transport=chosen["transport"], calls=[AgentResult(**r) for r in results], insurance_test=insurance)
+    async with client("handoff") as c:
+        twin = (await c.post("/twins", json=twin_req.model_dump(mode="json"))).json()
+    async with client("sync_twilio") as c:
+        await c.post("/sms", json={"to": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]"),
+                                   "text": f"Marco Polo transfer to {chosen['hospital']}: case summary {twin['shlink']} (passcode given on the call)"})
+    t["twin"] = {"shlink": twin["shlink"], "passcode": twin["passcode"], "hospital": chosen["hospital"], "insurance": twin.get("insurance")}
+    await _tevent(tid, "twin_ready", chosen["hospital_id"], **t["twin"])
+    return {"accepted": chosen["hospital"], "treatment_start_min": chosen["treatment_start_min"], "twin": t["twin"]}
+
+
+@app.get("/centers")
+def centers():
+    return {"sending": DATA["sending"], "centers": DATA["centers"], "demo_cases": DATA["demo_cases"], "windows": DATA["windows"]}
 
 
 @app.get("/health")
 def health():
-    return {"ok": True, "centers": len(CENTERS), "swarm_timeout_s": SWARM_TIMEOUT}
-
-
-@app.post("/transfers")
-def start_transfer(case: Case):
-    # TODO(FR-1): missing-field check; TODO(FR-5): launch one sandbox per header (K8s Job or fallback runner)
-    headers = select_centers(case.specialty)
-    return {"started_at": datetime.now(timezone.utc).isoformat(), "agents": [h.model_dump(mode="json") for h in headers]}
-
-# TODO(FR-9): stop when all agents finish or SWARM_TIMEOUT elapses
-# TODO(FR-10): rank yeses by treatment_start(); tie -> higher capability level
-# TODO(FR-11/12): hold the best, release the rest, SMS summary, physician-to-physician bridge
-# TODO(FR-20): build the handoff twin after acceptance (services/handoff)
+    return {"ok": True, "integrations": config.integrations(), "centers": len(CENTERS)}

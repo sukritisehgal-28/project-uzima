@@ -1,18 +1,21 @@
-"""Emit the four call events (+ the final result) to the collector."""
-import os
+"""Emitter: every call path sends the same four events plus a full result to the collector."""
 from datetime import datetime, timezone
 
-import httpx
-
-from services.shared.schemas import AgentResult, CallEvent
-
-COLLECTOR = os.getenv("COLLECTOR_URL", "http://localhost:8003")
+from services.shared.clients import client
+from services.shared.schemas import AgentHeader, AgentResult, CallEvent
 
 
-def emit(event_type: str, agent_id: str, hospital_id: str, **data) -> None:
-    ev = CallEvent(type=event_type, agent_id=agent_id, hospital_id=hospital_id, at=datetime.now(timezone.utc), data=data)
-    httpx.post(f"{COLLECTOR}/events", json=ev.model_dump(mode="json"), timeout=5)
+class Emitter:
+    def __init__(self, header: AgentHeader, transfer_id: str) -> None:
+        self.h, self.tid = header, transfer_id
 
+    async def event(self, event_type: str, **data) -> None:
+        ev = CallEvent(type=event_type, transfer_id=self.tid, agent_id=self.h.agent_id, hospital_id=self.h.hospital_id,
+                       at=datetime.now(timezone.utc), data=data)
+        async with client("collector") as c:
+            await c.post("/events", json=ev.model_dump(mode="json"))
 
-def emit_result(result: AgentResult) -> None:
-    httpx.post(f"{COLLECTOR}/results", json=result.model_dump(mode="json"), timeout=5)
+    async def result(self, r: AgentResult) -> None:
+        r.transfer_id = self.tid
+        async with client("collector") as c:
+            await c.post("/results", json=r.model_dump(mode="json"))
