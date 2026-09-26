@@ -107,7 +107,7 @@ sequenceDiagram
 | --- | --- |
 | Udit | Core and integration: orchestrator, collector, agents, infra, data. Presents. |
 | Sakshi | Voice: Twilio gateway, Media Streams to OpenAI Realtime bridge, Connect. |
-| Sukriti | Screen and submission: dashboard, video, docs. |
+| Sukriti | Patient handoff: the encrypted record as the patient's wallet for the transfer (`services/handoff`). Screen and submission: dashboard, video, docs. |
 
 ## Rules
 
