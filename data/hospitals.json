@@ -42,7 +42,16 @@
       "state_poverty_rate_pct_2024": 17.8,
       "state_source": "https://usafacts.org/answers/what-is-the-us-poverty-rate/state/mississippi/"
     },
-    "short_name": "South Sunflower, Indianola"
+    "short_name": "South Sunflower, Indianola",
+    "childbirth_checked": {
+      "value": false,
+      "verified": true,
+      "reliability": "B",
+      "source": "https://www.southsunflower.org/getpage.php?name=OB_and_Newborn_Care&sub=Services",
+      "note": "Still delivers babies (renovated maternity suite, CMS Birthing-Friendly), but no NICU or maternal-fetal medicine is listed: high-risk births transfer out",
+      "nicu_level": "none",
+      "high_risk_ob": false
+    }
   },
   "context_only": [
     {
@@ -95,6 +104,12 @@
       "transport_budget_min": 60,
       "hard_max_min": 90,
       "basis": "60-minute access to definitive trauma care is the standard used in JAMA Network Open, Feb 2026: 42% of rural residents lack it by ground - https://pmc.ncbi.nlm.nih.gov/articles/PMC12910394/"
+    },
+    "childbirth": {
+      "label": "High-risk childbirth needing labor and delivery, an emergency C-section team and a NICU",
+      "transport_budget_min": 60,
+      "hard_max_min": 120,
+      "basis": "No national time standard exists for high-risk obstetric transfers; 60/120 min is the team's demo default and the clinician sets the real limit with Care within."
     }
   },
   "centers": [
@@ -122,6 +137,15 @@
           "reliability": "B",
           "source": "https://www.mshealthcarealliance.org/systems-of-care/stroke/stroke-hospitals/",
           "note": "MS stroke Level 3"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.deltahealthsystem.org/services/obstetrics-gynecology/maternity-center/",
+          "note": "Labor and delivery suites, obstetric operating room, Level II newborn nursery (special care, not Level III); no maternal-fetal medicine listed",
+          "nicu_level": "II",
+          "high_risk_ob": false
         }
       },
       "straight_line_miles": 22,
@@ -175,6 +199,15 @@
           "reliability": "B",
           "source": "https://umc.edu/Childrens/Childrens%20Emergency%20Medicine/Childrens-Emergency-Medicine.html",
           "note": "State's only dedicated children's ED and Level 1 trauma care"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://umc.edu/Healthcare/Womens%20Health/Pregnancy%20and%20Childbirth/childbirthing.html",
+          "note": "Wiser Hospital for Women and Infants: labor and delivery for high-risk pregnancies, maternal-fetal medicine, Level IV NICU",
+          "nicu_level": "IV",
+          "high_risk_ob": true
         }
       },
       "straight_line_miles": 83,
@@ -207,6 +240,15 @@
           "reliability": "D",
           "source": "https://www.fmolhs.org/",
           "note": "Hospital site unreachable during verification (certificate error); ACC cath-lab accreditation reported but not confirmed; NOT used for the cardiac case"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.fmolhs.org/locations/greater-jackson/st-dominics-maternal-and-newborn-care",
+          "note": "Labor and delivery, 24/7 OB emergency department, 23-bed Level III NICU; no maternal-fetal medicine service listed",
+          "nicu_level": "III",
+          "high_risk_ob": null
         }
       },
       "straight_line_miles": 83,
@@ -239,6 +281,15 @@
           "reliability": "B",
           "source": "https://www.mshealthcarealliance.org/systems-of-care/stroke/stroke-hospitals/",
           "note": "MS stroke Level 2"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.baptistonline.org/locations/jackson/services/maternity-and-childbirth",
+          "note": "Labor and delivery, 32-bed Level III NICU, maternal-fetal medicine specialists, statewide maternal transport",
+          "nicu_level": "III",
+          "high_risk_ob": true
         }
       },
       "straight_line_miles": 84,
@@ -271,6 +322,15 @@
           "reliability": "B",
           "source": "https://www.mshealthcarealliance.org/systems-of-care/stroke/stroke-hospitals/",
           "note": "MS stroke Level 3"
+        },
+        "childbirth": {
+          "value": false,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.merithealthcentral.com/maternity-care-services",
+          "note": "Delivers babies and does C-sections, but its NICU moved to another Merit hospital in 2022 (WLBT, Sep 2022), so not for high-risk births",
+          "nicu_level": "none",
+          "high_risk_ob": false
         }
       },
       "straight_line_miles": 84,
@@ -303,6 +363,15 @@
           "reliability": "B",
           "source": "https://www.mshealthcarealliance.org/systems-of-care/stroke/stroke-hospitals/",
           "note": "MS stroke Level 3"
+        },
+        "childbirth": {
+          "value": false,
+          "verified": false,
+          "reliability": "D",
+          "source": "https://www.baptistonline.org/locations/north-mississippi/services/maternity-services",
+          "note": "Delivers babies (CMS Birthing-Friendly), but no page confirms a NICU or its level, so it is not called for high-risk births",
+          "nicu_level": null,
+          "high_risk_ob": null
         }
       },
       "straight_line_miles": 89,
@@ -335,6 +404,15 @@
           "reliability": "B",
           "source": "https://www.methodisthealth.org/locations/methodist-university-hospital",
           "note": "Comprehensive Stroke Center Certification"
+        },
+        "childbirth": {
+          "value": false,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.methodisthealth.org/healthcare-services/womens-health/maternity/",
+          "note": "Methodist delivers babies at Germantown and Olive Branch, not at University Hospital",
+          "nicu_level": "none",
+          "high_risk_ob": false
         }
       },
       "straight_line_miles": 121,
@@ -367,6 +445,15 @@
           "reliability": "B",
           "source": "https://www.regionalonehealth.org/firefighters-burn-center/",
           "note": "Firefighters Burn Center, ABA-verified, only full-service burn center within 200 miles; patients age 14 and up"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.uthsc.edu/pediatrics/fellowships/neonatal-perinatal-medicine/facilities.php",
+          "note": "Sheldon B. Korones Newborn Center: 65-bed Level III NICU, about 3,000 deliveries a year, high-risk obstetrics; Tennessee's designated West Tennessee Regional Perinatal Center (tn.gov/health/prp.html)",
+          "nicu_level": "III",
+          "high_risk_ob": true
         }
       },
       "straight_line_miles": 122,
@@ -392,6 +479,15 @@
           "reliability": "B",
           "source": "https://www.lebonheur.org/services/trauma-services",
           "note": "ACS Level I Pediatric Trauma Center; state-designated in TN, AR and MS"
+        },
+        "childbirth": {
+          "value": false,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.lebonheur.org/services/neonatology",
+          "note": "Children's hospital with the region's only Level IV NICU; not a birthing hospital",
+          "nicu_level": "IV",
+          "high_risk_ob": false
         }
       },
       "straight_line_miles": 122,
@@ -438,6 +534,15 @@
           "reliability": "B",
           "source": "https://www.nmhs.net/medical-services/emergency-and-trauma-care",
           "note": "MSDH Secondary Pediatric Trauma Center"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.nmhs.net/medical-services/women-and-children/specialties-and-services/pregnancy-and-birth/nicu",
+          "note": "NMMC Women's Hospital: Level III NICU (34 beds), labor and delivery, high-risk pregnancy and maternal-fetal medicine",
+          "nicu_level": "III",
+          "high_risk_ob": true
         }
       },
       "straight_line_miles": 123,
@@ -470,6 +575,15 @@
           "reliability": "B",
           "source": "https://www.baptistonline.org/services/stroke",
           "note": "Joint Commission Comprehensive Stroke Center; endovascular procedures; neuro ICU"
+        },
+        "childbirth": {
+          "value": false,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.baptistonline.org/services/maternity-childbirth",
+          "note": "Deliveries are at Baptist Memorial Hospital for Women next door, not at the adult hospital",
+          "nicu_level": "none",
+          "high_risk_ob": false
         }
       },
       "straight_line_miles": 124,
@@ -502,6 +616,15 @@
           "reliability": "B",
           "source": "https://www.archildrens.org/programs-and-services/burn-program",
           "note": "Arkansas' only burn program; adults and children"
+        },
+        "childbirth": {
+          "value": false,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.archildrens.org/blog/unhealthy-pregnancy-diagnosis",
+          "note": "Arkansas' only Level IV NICU; mothers deliver at UAMS; not a birthing hospital",
+          "nicu_level": "IV",
+          "high_risk_ob": false
         }
       },
       "straight_line_miles": 129,
@@ -541,6 +664,15 @@
           "reliability": "B",
           "source": "https://uamshealth.com/expertise/stroke-care/",
           "note": "Certified Level 1 Trauma Center"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://medicine.uams.edu/pediatrics/specialties/sections/neonatology/",
+          "note": "Level III NICU (Arkansas Department of Health list: Level III-B), 24/7 labor and delivery, maternal-fetal medicine",
+          "nicu_level": "III",
+          "high_risk_ob": true
         }
       },
       "straight_line_miles": 131,
@@ -566,6 +698,15 @@
           "reliability": "B",
           "source": "https://www.commonspirit.org/find-a-location/chi-st-vincent-infirmary-1390",
           "note": "Level II trauma center, 600 beds"
+        },
+        "childbirth": {
+          "value": false,
+          "verified": true,
+          "reliability": "C",
+          "source": "https://www.arkansasonline.com/news/2019/jan/16/closure-dismays-delivery-nurses-2019011/",
+          "note": "Labor and delivery closed Feb 9, 2019; NICU phased out",
+          "nicu_level": "none",
+          "high_risk_ob": false
         }
       },
       "straight_line_miles": 132,
@@ -605,6 +746,15 @@
           "reliability": "B",
           "source": "https://www.baptist-health.org/location/baptist-health-medical-center-little-rock",
           "note": "Level II Trauma center"
+        },
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.baptist-health.org/center-details/labor-delivery-little-rock",
+          "note": "Delivers more babies than any Arkansas hospital; Level III-B NICU; maternal-fetal medicine and a 24/7 maternal transport team",
+          "nicu_level": "III",
+          "high_risk_ob": true
         }
       },
       "straight_line_miles": 133,
@@ -612,6 +762,93 @@
       "est_ground_min": 202,
       "est_air_min": 96,
       "short_name": "Baptist, Little Rock"
+    },
+    {
+      "id": "baptist_womens",
+      "name": "Baptist Memorial Hospital for Women",
+      "short_name": "Baptist Women's, Memphis",
+      "city": "Memphis",
+      "state": "TN",
+      "address": "6225 Humphreys Blvd, Memphis, TN 38120",
+      "lat": 35.1278304,
+      "lng": -89.8562728,
+      "coord_source": "OpenStreetMap Nominatim (OSM way 496445802)",
+      "phone_reference": null,
+      "place_id": null,
+      "website": "https://www.baptistonline.org/locations/womens",
+      "straight_line_miles": 124,
+      "est_road_miles": 149,
+      "est_ground_min": 189,
+      "est_air_min": 92,
+      "capabilities": {
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.baptistonline.org/locations/womens",
+          "note": "Largest maternity program in the Mid-South, high-risk maternity, Level III NICU; regional referral center for high-risk pregnancies",
+          "nicu_level": "III",
+          "high_risk_ob": true
+        }
+      }
+    },
+    {
+      "id": "merit_womans",
+      "name": "Merit Health Woman's Hospital",
+      "short_name": "Merit Woman's, Flowood",
+      "city": "Flowood",
+      "state": "MS",
+      "address": "1026 North Flowood Dr, Flowood, MS 39232",
+      "lat": 32.3296359,
+      "lng": -90.1014576,
+      "coord_source": "OpenStreetMap Nominatim (OSM way 485604941)",
+      "phone_reference": null,
+      "place_id": null,
+      "website": "https://www.merithealthwomanshospital.com/our-services-maternity-care",
+      "straight_line_miles": 84,
+      "est_road_miles": 101,
+      "est_ground_min": 131,
+      "est_air_min": 74,
+      "capabilities": {
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.merithealthwomanshospital.com/our-services-maternity-care",
+          "note": "Labor and delivery staffed 24/7 by obstetricians and neonatologists, Level III NICU, perinatologists for high-risk pregnancies",
+          "nicu_level": "III",
+          "high_risk_ob": true
+        }
+      }
+    },
+    {
+      "id": "bolivar_cleveland",
+      "name": "Bolivar Medical Center",
+      "short_name": "Bolivar Medical, Cleveland",
+      "city": "Cleveland",
+      "state": "MS",
+      "address": "901 E Sunflower Rd, Cleveland, MS 38732",
+      "lat": 33.748576,
+      "lng": -90.7081056,
+      "coord_source": "OpenStreetMap Nominatim (amenity=hospital)",
+      "phone_reference": null,
+      "place_id": null,
+      "website": "https://www.bolivarmedical.com/services/womens-health/labor-delivery",
+      "straight_line_miles": 20,
+      "est_road_miles": 24,
+      "est_ground_min": 39,
+      "est_air_min": 44,
+      "capabilities": {
+        "childbirth": {
+          "value": true,
+          "verified": true,
+          "reliability": "B",
+          "source": "https://www.bolivarmedical.com/services/womens-health/labor-delivery",
+          "note": "Birthing center and a Level II neonatal intensive care nursery; no maternal-fetal medicine listed; joined Lifepoint Health June 2026",
+          "nicu_level": "II",
+          "high_risk_ob": false
+        }
+      }
     }
   ],
   "demo_cases": {
@@ -829,6 +1066,82 @@
       },
       "called_by_default": [
         "ummc"
+      ]
+    },
+    "childbirth": {
+      "window": "childbirth",
+      "center_ids": [
+        "bolivar_cleveland",
+        "delta_health",
+        "ummc",
+        "st_dominic",
+        "ms_baptist",
+        "merit_womans",
+        "regional_one",
+        "nmmc_tupelo",
+        "baptist_womens",
+        "uams",
+        "baptist_little_rock"
+      ],
+      "note": "Hospitals that deliver babies today and have a NICU (level in each capability note). Children's hospitals are excluded: they don't deliver babies.",
+      "eligibility": {
+        "bolivar_cleveland": {
+          "tier": "within_target",
+          "mode": "ground"
+        },
+        "delta_health": {
+          "tier": "within_target",
+          "mode": "ground"
+        },
+        "ummc": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "st_dominic": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "ms_baptist": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "merit_womans": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "regional_one": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "nmmc_tupelo": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "baptist_womens": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "uams": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        },
+        "baptist_little_rock": {
+          "tier": "within_hard_max",
+          "mode": "air"
+        }
+      },
+      "called_by_default": [
+        "bolivar_cleveland",
+        "delta_health",
+        "ummc",
+        "st_dominic",
+        "ms_baptist",
+        "merit_womans",
+        "regional_one",
+        "nmmc_tupelo",
+        "baptist_womens",
+        "uams",
+        "baptist_little_rock"
       ]
     }
   },

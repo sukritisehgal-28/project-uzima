@@ -102,6 +102,17 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
 
   /** Label collision avoidance: most important statuses first; each label tries its preferred side, then the others,
    *  and is hidden (pin and number stay) if no side is free. Runs after every zoom and redraw. */
+  /** Floating cards over the map (marked data-map-overlay): labels avoid them and the fit keeps pins clear of them. */
+  const overlays = (): Box[] => {
+    const c = el.current;
+    if (!c?.parentElement) return [];
+    const base = c.getBoundingClientRect();
+    return [...c.parentElement.querySelectorAll<HTMLElement>("[data-map-overlay]")].map((o) => {
+      const r = o.getBoundingClientRect();
+      return { x: r.left - base.left - 6, y: r.top - base.top - 6, w: r.width + 12, h: r.height + 12 };
+    });
+  };
+
   const layoutLabels = () => {
     const m = map.current, s = sendingRef.current;
     if (!m || !s) return;
@@ -109,9 +120,9 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
     const er = m.project([s.lng, s.lat]);
     const lg = legend.current;
     const legendBox = lg ? { x: 0, y: lg.offsetTop - 6, w: lg.offsetLeft + lg.offsetWidth + 6, h: H - lg.offsetTop + 6 } : { x: 0, y: H - 44, w: 640, h: 44 };
-    const taken: Box[] = [{ x: er.x - 16, y: er.y - 16, w: 32, h: 32 }, legendBox, { x: 0, y: 0, w: 290, h: 64 }];
+    const taken: Box[] = [{ x: er.x - 16, y: er.y - 16, w: 32, h: 32 }, legendBox, ...overlays()];
     const pts = placed.current.map((e) => m.project(e.marker.getLngLat()));
-    pts.forEach((pt) => taken.push({ x: pt.x - 13, y: pt.y - 13, w: 26, h: 26 }));
+    pts.forEach((pt) => taken.push({ x: pt.x - 16, y: pt.y - 16, w: 32, h: 32 }));
     const order = placed.current.map((e, i) => ({ e, pt: pts[i] }))
       .sort((a, b) => (PRIORITY[a.e.card.status] ?? 9) - (PRIORITY[b.e.card.status] ?? 9));
     for (const { e, pt } of order) {
@@ -133,7 +144,7 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
   useEffect(() => {
     if (!el.current || map.current) return;
     const m = new maplibregl.Map({ container: el.current, style: MAP_STYLE, center: [-90.3, 33.4], zoom: 6, attributionControl: { compact: true } });
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     m.on("load", () => {
       m.addSource("links", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       m.addLayer({ id: "links-done", type: "line", source: "links", filter: ["!", ["in", ["get", "status"], ["literal", ["calling", "callback_requested"]]]],
@@ -191,7 +202,9 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
       if (!cards.length) return m.jumpTo({ center: [sending.lng - 0.6, sending.lat - 0.2], zoom: 6.2 });
       const b = new maplibregl.LngLatBounds([sending.lng, sending.lat], [sending.lng, sending.lat]);
       cards.forEach((c) => b.extend([c.lng, c.lat]));
-      m.fitBounds(b, { padding: { top: 90, left: 120, right: 150, bottom: 80 }, maxZoom: 8, duration: 0 });
+      const H = m.getContainer().clientHeight;
+      const top = Math.max(90, ...overlays().filter((o) => o.y < H / 3).map((o) => o.y + o.h + 12));
+      m.fitBounds(b, { padding: { top: Math.min(top, H / 2), left: 120, right: 150, bottom: 80 }, maxZoom: 8, duration: 0 });
     };
     ready.current ? fit() : m.once("mp:ready", fit);
     // eslint-disable-next-line react-hooks/exhaustive-deps

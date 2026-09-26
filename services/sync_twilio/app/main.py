@@ -40,6 +40,7 @@ SPECIALTY_NEED = {
     "stroke_thrombectomy": "a large vessel stroke patient who needs thrombectomy and a neuro ICU bed",
     "trauma_adult": "an adult trauma patient who needs a trauma bay and a surgical team",
     "trauma_burn": "a burn patient who needs a burn ICU bed",
+    "childbirth": "a high-risk delivery who needs labor and delivery, an emergency C-section team and a NICU bed",
     "trauma_pediatric": "a pediatric trauma patient who needs a pediatric trauma bay",
 }
 
@@ -226,7 +227,6 @@ class Bridge:
         self.item_at: dict[str, datetime] = {}     # item_id -> when that turn started, to order transcript lines
         self.answered_at: Optional[datetime] = None
         self.report: Optional[dict] = None
-        self.confirm_nudged = False
         self.need_response = False                 # a tool output was sent; create a response once the current one is done
         self.response_active = False
         self.awaiting_closing = False
@@ -441,8 +441,7 @@ class Bridge:
             out = {"ok": False, "error": "unknown tool"}
         elif self.report is not None:
             out = {"ok": True, "note": "already recorded, do not call again"}
-        elif answer_data(args)["bed"] and not args.get("confirmed") and not self.confirm_nudged:
-            self.confirm_nudged = True
+        elif not isinstance(args, dict) or args.get("confirmed") is not True:
             out = {"ok": False, "error": "Not recorded. Read the answer back, get their confirmation, then call again with confirmed=true."}
         else:
             self.report = args
@@ -567,8 +566,13 @@ async def bridge(req: BridgeRequest):
         return _mock("bridge", live=bool(entry), clinician=req.clinician or req.a, summary=req.summary)
     if entry and entry.get("call_sid"):
         twiml = f"<Response>{say}<Dial>{escape(req.clinician or req.a)}</Dial></Response>"
-        r = await _twilio(f"Calls/{entry['call_sid']}.json", {"Url": _twiml_url(twiml)})
-        return {"mode": "live", "sid": r.get("sid"), "via": "live_call"}
+        try:
+            r = await _twilio(f"Calls/{entry['call_sid']}.json", {"Url": _twiml_url(twiml)})
+            return {"mode": "live", "sid": r.get("sid"), "via": "live_call"}
+        except httpx.HTTPStatusError as e:
+            if not (req.fallback_hospital or req.b):
+                raise
+            log.warning("Twilio rejected live-call update (HTTP %s); using configured fallback", e.response.status_code)
     to, other = (req.clinician or req.a), (req.fallback_hospital or req.b)
     twiml = f"<Response><Say>Connecting you to the accepting hospital.</Say><Dial>{escape(other)}</Dial></Response>"
     r = await _twilio("Calls.json", {"To": to, "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml)})

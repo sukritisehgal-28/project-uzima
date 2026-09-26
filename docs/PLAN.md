@@ -15,7 +15,7 @@ Hospitals never open anything. No app, page, link, text or QR code. They get a n
 What changed from v2 because of this rule:
 
 - No SMS to hospitals. `/release` only logs; the agent thanks declining hospitals on the call.
-- No SMS link to the accepting doctor. On Connect, the agent reads the summary and the record passcode on the live call, then Twilio dials the referring clinician into that same call.
+- No SMS link to the accepting doctor. On Connect, the agent reads the summary on the live call, then Twilio dials the referring clinician into that same call.
 - The encrypted handoff record (IPS bundle as a SMART Health Link) is still built on Connect but not sent to anyone yet. Sukriti owns it; see "Patient handoff record" below.
 
 ## Team
@@ -31,22 +31,22 @@ What changed from v2 because of this rule:
 **Decided: Sukriti builds it as the patient's wallet for the transfer.** It uses the same QR standard (SMART Health Links) as CMS's [Kill the Clipboard](https://www.cms.gov/initiatives/health-technology-ecosystem/overview/health-tech-ecosystem-categories/your-patient-shows-you-qr-code-you-scan-it-thats-it): a patient's app or wallet makes a QR code, and a clinic scans it to get the patient's history, medications, allergies and insurance. eClinicalWorks has supported it in production since [April 9, 2026](https://hitconsultant.net/2026/04/09/eclinicalworks-cms-kill-the-clipboard-qr-code-patient-intake/). Kill the Clipboard covers check-in at a clinic; ours covers the emergency transfer.
 
 - Read the wallet in: if the patient has a Kill the Clipboard QR code, the sending ER scans it, and their medications and allergies fill the record.
-- Open it like a wallet pass: the receiving team unlocks the record with the passcode spoken on the call, ideally in a Kill the Clipboard reader they already have (CMS says community-hosted readers exist today). Test this first: those readers expect the US Core format, and our record follows IPS.
+- Open it like a wallet pass: the receiving team scans the ticket's QR code to open the record (no passcode; the link expires after 24 hours), ideally in a Kill the Clipboard reader they already have (CMS says community-hosted readers exist today). Test this first: those readers expect the US Core format, and our record follows IPS.
 
 What's built (Sukriti):
 
-- On Connect the orchestrator builds the record: an HL7 IPS patient summary (patient, condition and onset, medications, allergies, problem list), a Transfer section (every call with its answer, reason and transcript; ground vs air rationale) and a Coverage resource from the insurance check (Stedi mock), encrypted as a SMART Health Link (AES-256-GCM, passcode, 24 h expiry). The agent reads the passcode on the winning call.
-- Transfer ticket: a boarding-pass style ticket (`/tickets/{id}`) with the route, patient, condition, transport, arrival time, team-ready time, insurance and a QR code of the record link. It never shows the passcode. The dashboard shows "Ticket created" with a QR code that opens the ticket on a phone.
+- On Connect the orchestrator builds the record: an HL7 IPS patient summary (patient, condition and onset, medications, allergies, problem list), a Transfer section (every call with its answer, reason and transcript; ground vs air rationale) and a Coverage resource from the insurance check (Stedi mock), encrypted as a SMART Health Link (AES-256-GCM, 24 h expiry, no passcode).
+- Transfer ticket: a boarding-pass style ticket (`/tickets/{id}`) with the route, patient, condition, transport, arrival time, team-ready time, insurance and a QR code of the record link. The dashboard shows "Ticket created" with a QR code that opens the ticket on a phone.
 - Apple Wallet: `/tickets/{id}.pkpass` builds and signs the pass. Apple only installs passes signed with a Pass Type ID certificate from an Apple Developer account, so it switches on when `APPLE_PASS_TYPE_ID`, `APPLE_TEAM_ID`, `APPLE_PASS_P12` and `APPLE_WWDR_CERT` are set. Until then the web ticket is the ticket.
-- Record viewer: `/view` asks for the passcode, fetches the encrypted file and decrypts it in the browser; the key stays in the link. Ten wrong passcodes lock the link (SMART Health Links rule).
+- Record viewer: `/view` fetches the encrypted file and decrypts it in the browser; the key is in the link, so whoever holds the ticket can open the record until it expires (24 hours). No passcode, by decision on Sep 26.
 - For phones, run an https tunnel to port 8004 and set `HANDOFF_PUBLIC_URL` to it (browsers only decrypt on https or localhost). Records and tickets are kept in memory, so a restart clears them.
 - Still open: if a simulated hospital wins, the fallback call doesn't read the summary.
 
 Still to decide, mainly how the link reaches the receiving team (some of these bend the core rule above):
 
-- Text the link to the accepting doctor right after Connect; the passcode is spoken on the call.
+- Text the link to the accepting doctor right after Connect.
 - A QR code that travels with the patient; the receiving team scans it on arrival.
-- On stage, a judge scans the QR and unlocks the record with the passcode they just heard.
+- On stage, a judge scans the QR and the record opens on their phone.
 - A public address for the record (for example through the ngrok tunnel on 8002) and a working viewer.
 - Richer fictional case data (ECG, medications given, allergies, weight) so the record is worth opening.
 
@@ -54,6 +54,10 @@ Still to decide, mainly how the link reaches the receiving team (some of these b
 
 - Real: the zone from the clinician's time window, one agent per hospital running in parallel, 3 live phone calls to verified phones, read-back and confirm on each call, ranking, Connect doctor to doctor on the winning call, the encrypted record.
 - Simulated: the other hospitals' answers (weighted random with real reasons), labeled on the map. Hospital coordinates and capabilities come from `data/hospitals.json` (Mississippi Delta, verified sources). Never dial the real `phone_reference` numbers.
+
+## Case types
+
+Heart attack, stroke, trauma, burn, pediatric trauma, and high-risk childbirth (added Sep 26). Childbirth calls hospitals that deliver babies today and have a NICU, each checked against the hospital's own site or a state list (source and grade in `data/hospitals.json`). Its 60 / 120 min window is a demo default, not a guideline; the clinician sets the real limit with Care within.
 
 ## Limits
 

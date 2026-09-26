@@ -70,7 +70,7 @@ def test_viewer_page_and_cors_for_other_viewers():
     assert pre.headers.get("access-control-allow-origin") in ("*", "https://viewer.example.org")
 
 
-def test_ticket_is_created_with_the_record_and_never_shows_the_passcode():
+def test_ticket_is_created_with_the_record_and_opens_without_a_passcode():
     r = _call("POST", "/twins", json=_req().model_dump(mode="json")).json()
     k = r["ticket"]
     assert k["to"] == {"name": "Delta Health System-The Medical Center", "short": "Delta Health", "city": "Greenville, MS"}
@@ -80,7 +80,7 @@ def test_ticket_is_created_with_the_record_and_never_shows_the_passcode():
     page = _call("GET", f"/tickets/{k['id']}")
     assert page.status_code == 200 and "Greenville" in page.text and k["code"] in page.text and "<svg" in page.text
     assert "No known drug allergies" in page.text and "paramedic" in page.text
-    assert r["passcode"] not in page.text
+    assert "passcode" not in r and "passcode" not in page.text.lower()
     assert _call("GET", f"/tickets/{k['id']}.pkpass").status_code == 404
     assert _call("GET", "/tickets/not-a-ticket").status_code == 404
 
@@ -114,7 +114,7 @@ def test_wallet_pass_is_hashed_and_signed(tmp_path, monkeypatch):
     assert all(hashlib.sha1(z.read(n)).hexdigest() == h for n, h in manifest.items())
     p = json.loads(z.read("pass.json"))
     assert p["barcodes"][0]["message"] == r["shlink"] and p["boardingPass"]["primaryFields"][1]["value"] == "Greenville"
-    assert p["passTypeIdentifier"] == "pass.test.uzima" and r["passcode"] not in json.dumps(p)
+    assert p["passTypeIdentifier"] == "pass.test.uzima" and "passcode" not in json.dumps(p).lower()
     signers = {c.subject.rfc4514_string() for c in pkcs7.load_der_pkcs7_certificates(z.read("signature"))}
     assert signers == {"CN=Pass Type ID: pass.test.uzima", "CN=Test WWDR"}
 
@@ -129,7 +129,8 @@ def test_demo_details_fill_gaps_but_never_override_the_clinician():
 def test_record_carries_emtala_transfer_content():
     r = _call("POST", "/twins", json=_req().model_dump(mode="json")).json()
     payload = json.loads(base64.urlsafe_b64decode(r["shlink"].split("#shlink:/")[1] + "=="))
-    m = _call("POST", payload["url"].split("8004", 1)[-1], json={"recipient": "x", "passcode": r["passcode"]}).json()
+    assert "flag" not in payload                                                   # no passcode on our links
+    m = _call("POST", payload["url"].split("8004", 1)[-1], json={"recipient": "x"}).json()
     bundle = decrypt_shl(m["files"][0]["embedded"], payload["key"])
     kinds = [e["resource"]["resourceType"] for e in bundle["entry"]]
     assert {"AllergyIntolerance", "DiagnosticReport", "Coverage"} <= set(kinds)
