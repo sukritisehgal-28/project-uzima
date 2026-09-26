@@ -14,8 +14,9 @@ router = APIRouter()
 handoffs: dict[str, dict] = {}
 
 
-def conference(room: str) -> str:
-    return f'<Dial><Conference beep="false" endConferenceOnExit="true">{escape(room)}</Conference></Dial>'
+def conference(room: str, end_on_exit: bool = True) -> str:
+    end = "true" if end_on_exit else "false"
+    return f'<Dial><Conference beep="false" endConferenceOnExit="{end}">{escape(room)}</Conference></Dial>'
 
 
 async def start(req, hospital_entry: dict | None) -> dict:
@@ -26,7 +27,7 @@ async def start(req, hospital_entry: dict | None) -> dict:
     handoffs[token] = state
     ready_url = f"https://{config.env('PUBLIC_HOST')}/doctor-ready/{token}"
     # The redirect happens only after the accepting doctor hears the summary.
-    twiml = (f'<Response><Say>{escape(req.summary or "This is the Uzima AI assistant with a demo referral.")}</Say>'
+    twiml = (f'<Response><Say>Hello, this is the Uzima AI assistant. {escape(req.summary or "I am calling about a demo referral.")}</Say>'
              f'<Redirect method="POST">{escape(ready_url)}</Redirect></Response>')
     result = await _twilio("Calls.json", {"To": req.accepting_doctor, "From": config.env("TWILIO_FROM_NUMBER"),
                                         "Url": _twiml_url(twiml), "Timeout": "30", "TimeLimit": "300"})
@@ -58,7 +59,8 @@ async def ready(token: str, request: Request):
             if entry.get("call_sid"):
                 try:
                     await _twilio(f'Calls/{entry["call_sid"]}.json', {"Url": _twiml_url(
-                        '<Response><Say>The accepting and referring doctors are joining the handoff.</Say>' + join + '</Response>')})
+                        '<Response><Say>The accepting and referring doctors are joining the handoff.</Say>'
+                        + conference(state["room"], end_on_exit=False) + '</Response>')})
                 except httpx.HTTPError:
                     pass
             state["reply"] = '<Response><Say>Connecting you to the referring doctor now.</Say>' + join + '</Response>'

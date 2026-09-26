@@ -24,6 +24,7 @@ def test_accepting_doctor_is_dialed_then_summary_then_sending_doctor(monkeypatch
     assert send.call_args.args[1]["To"] == "+15550000002"
     xml = gateway.twiml_docs[send.call_args.args[1]["Url"].rsplit("/", 1)[-1]]
     assert xml.index("Referral &amp; summary") < xml.index("<Redirect")
+    assert "AI assistant" in xml
     token = re.search(r"doctor-ready/([a-f0-9]+)", xml).group(1)
     path = f"/doctor-ready/{token}"
     body = "https://voice.test" + path + "CallSidaccepting"
@@ -33,5 +34,7 @@ def test_accepting_doctor_is_dialed_then_summary_then_sending_doctor(monkeypatch
     assert response.status_code == 200 and "<Conference" in response.text
     assert send.await_args_list[1].args[1]["To"] == "+15550000001"
     assert send.await_args_list[2].args[0] == "Calls/desk.json"
+    desk_xml = gateway.twiml_docs[send.await_args_list[2].args[1]["Url"].rsplit("/", 1)[-1]]
+    assert 'endConferenceOnExit="false"' in desk_xml  # reception can hang up without disconnecting doctors
     again = tc.post(path, data={"CallSid": "accepting"}, headers={"X-Twilio-Signature": signature})
     assert again.text == response.text and send.await_count == 3
