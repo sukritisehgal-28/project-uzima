@@ -37,11 +37,13 @@ def test_end_to_end(monkeypatch):
             assert (await h.post(f"/manifests/{twin_id}", json={"recipient": "x", "passcode": "000000x"})).status_code == 401
             m = (await h.post(f"/manifests/{twin_id}", json={"recipient": "x", "passcode": twin["passcode"]})).json()
         bundle = decrypt_shl(m["files"][0]["embedded"], payload["key"])
-        assert bundle["entry"][0]["resource"]["title"] == "Marco Polo handoff twin"
+        assert bundle["entry"][0]["resource"]["title"] == "Project Uzima handoff twin"
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=collector), base_url="http://c") as c:
             kinds = [e["type"] for e in (await c.get(f"/transfers/{tid}/events")).json()["transfer"]]
         assert kinds[0] == "search_started" and "accepted" in kinds and kinds[-1] == "twin_ready"
-        assert any(x["kind"] == "sms" for x in outbox) and any(x["kind"] == "bridge" for x in outbox)
+        assert not any(x["kind"] == "sms" for x in outbox)             # hospitals never get texts
+        bridges = [x for x in outbox if x["kind"] == "bridge"]
+        assert bridges and "passcode" in bridges[-1]["summary"]            # summary is read on the call
 
     try:
         asyncio.run(run())

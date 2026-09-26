@@ -23,12 +23,12 @@ class K8sLauncher:
     async def launch(self, transfer_id: str, headers: list[AgentHeader]) -> None:
         from kubernetes import client as k8s, config as kcfg  # lazy
         kcfg.load_incluster_config() if config.env("KUBERNETES_SERVICE_HOST") else kcfg.load_kube_config()
-        api, ns = k8s.BatchV1Api(), config.env("K8S_NAMESPACE", "marco-polo")
+        api, ns = k8s.BatchV1Api(), config.env("K8S_NAMESPACE", "project-uzima")
         for h in headers:
             env = [k8s.V1EnvVar(name="AGENT_HEADER", value=json.dumps(h.model_dump(mode="json"))),
                    k8s.V1EnvVar(name="TRANSFER_ID", value=transfer_id)]
-            container = k8s.V1Container(name="agent", image=config.env("AGENT_IMAGE", "marco-polo/agent:latest"), env=env,
-                                        env_from=[k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="marco-polo-secrets"))])
+            container = k8s.V1Container(name="agent", image=config.env("AGENT_IMAGE", "project-uzima/agent:latest"), env=env,
+                                        env_from=[k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="project-uzima-secrets"))])
             job = k8s.V1Job(metadata=k8s.V1ObjectMeta(generate_name=f"agent-{h.agent_id.lower()}-"),
                             spec=k8s.V1JobSpec(backoff_limit=0, ttl_seconds_after_finished=300, template=k8s.V1PodTemplateSpec(
                                 spec=k8s.V1PodSpec(restart_policy="Never", containers=[container]))))

@@ -25,6 +25,7 @@ export default function App() {
   const [twin, setTwin] = useState<Twin>();
   const [qr, setQr] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [windowMin, setWindowMin] = useState<number>();
   const [error, setError] = useState<string>();
   const tidRef = useRef<string>();
 
@@ -67,7 +68,7 @@ export default function App() {
   async function onStart() {
     setError(undefined); setTwin(undefined); setRec(undefined); setStoppedAt(undefined);
     try {
-      const r = await startTransfer(specialty);
+      const r = await startTransfer(specialty, windowMin);   // untouched slider = the case default window
       tidRef.current = r.transfer_id; setTid(r.transfer_id); setStartedAt(Date.now());
       setCards(Object.fromEntries(r.agents.map((a) => [a.agent_id, { ...a, status: "calling" }])));
     } catch { setError("Could not start the search. Is make dev running?"); }
@@ -88,7 +89,8 @@ export default function App() {
   const perCall = 90;
   const oneByOne = Math.min(Math.max(n, 1), 1 + Math.floor(elapsed / perCall));
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  const w = windows[specialty];
+  const w0 = windows[specialty];
+  const w = w0 && windowMin ? { ...w0, transport_budget_min: windowMin, hard_max_min: windowMin } : w0;
   const caseInfo = CASES.find((c) => c.key === specialty)!;
   const accepted = list.find((c) => c.status === "accepted");
   const released = count("released");
@@ -98,18 +100,25 @@ export default function App() {
       {/* Top bar */}
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-ink-line px-5 py-3">
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="whitespace-nowrap text-[17px] font-semibold tracking-tight">Marco Polo</span>
+          <span className="whitespace-nowrap text-[17px] font-semibold tracking-tight">Project Uzima</span>
           <span className="truncate text-sm text-ink-muted">{sending?.name ?? "…"}, Indianola, MS</span>
         </div>
         <div className="flex max-w-full flex-wrap items-center gap-2">
           <div className="flex max-w-full overflow-x-auto rounded-md border border-ink-line">
             {CASES.map((c, i) => (
-              <button key={c.key} onClick={() => setSpecialty(c.key)} disabled={searching}
+              <button key={c.key} onClick={() => { setSpecialty(c.key); setWindowMin(undefined); }} disabled={searching}
                 className={`whitespace-nowrap px-3 py-1.5 text-sm ${i ? "border-l border-ink-line" : ""} ${specialty === c.key ? "bg-ink-raised text-ink-text" : "text-ink-muted hover:text-ink-text"} disabled:cursor-not-allowed`}>
                 {c.label}
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-ink-muted">
+            Care within
+            <input type="range" min={10} max={120} step={5} disabled={searching}
+              value={windowMin ?? windows[specialty]?.transport_budget_min ?? 60}
+              onChange={(e) => setWindowMin(Number(e.target.value))} className="w-28 accent-[#F0C06A]" />
+            <b className="tabular text-ink-text">{windowMin ?? windows[specialty]?.transport_budget_min ?? 60} min</b>
+          </label>
           <button onClick={onStart} disabled={searching}
             className="whitespace-nowrap rounded-md bg-brand px-4 py-1.5 text-sm font-semibold text-ink-bg hover:bg-[#EB6A3C] disabled:opacity-50">
             {searching ? "Searching…" : twin ? "New search" : "Find a bed"}
@@ -157,7 +166,7 @@ export default function App() {
               <div>
                 <div className="text-xs text-st-yes">Transfer accepted</div>
                 <div className="text-base font-semibold">{accepted.hospital}</div>
-                <div className="text-sm text-ink-muted">Physician-to-physician call started, case summary sent, {released} other {released === 1 ? "hospital" : "hospitals"} released.</div>
+                <div className="text-sm text-ink-muted">Summary read to the hospital on the call, doctors connected, {released} other {released === 1 ? "hospital" : "hospitals"} released.</div>
               </div>
             ) : rec ? (
               <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -172,9 +181,9 @@ export default function App() {
                 </div>
                 <div className="flex flex-col items-end">
                   <button onClick={onAccept} disabled={busy} className="rounded-md bg-st-yes px-4 py-2 text-sm font-semibold text-ink-bg hover:brightness-110 disabled:opacity-50">
-                    {busy ? "Confirming…" : "Accept and release others"}
+                    {busy ? "Connecting…" : "Connect doctors"}
                   </button>
-                  <span className="mt-1 text-xs text-ink-faint">Accepting physician confirms on the call</span>
+                  <span className="mt-1 text-xs text-ink-faint">The agent reads the summary to them, then you are connected</span>
                 </div>
               </div>
             ) : (
@@ -192,7 +201,7 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div className="text-sm text-ink-muted">After acceptance, an encrypted handoff record (case, every call, insurance check) goes to the receiving team.</div>
+            <div className="text-sm text-ink-muted">After Connect, the agent reads the summary on the call. An encrypted record (case, every call, insurance check) is kept for the receiving team.</div>
           )}
         </div>
       </footer>

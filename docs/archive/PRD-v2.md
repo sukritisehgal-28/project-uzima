@@ -1,4 +1,4 @@
-# Marco Polo — PRD v2
+# Project Uzima — PRD v2
 
 As of 2026-09-25 · Sukriti Sehgal
 
@@ -6,7 +6,7 @@ Second version of the plan: every ICU transfer, a Mississippi Delta demo, 2025�
 
 ## Overview
 
-Marco Polo is an AI agent swarm that finds an accepting ICU for a critical patient leaving a rural hospital — heart attack, stroke or trauma — by calling every capable center inside the patient's survival window at the same time, then letting a physician confirm the best yes. Every number below was checked at its source on 2026-09-25/26 and graded (A = government or peer-reviewed, B = state list, hospital site or industry report, C = news); anything that failed verification was dropped.
+Project Uzima is an AI agent swarm that finds an accepting ICU for a critical patient leaving a rural hospital — heart attack, stroke or trauma — by calling every capable center inside the patient's survival window at the same time, then letting a physician confirm the best yes. Every number below was checked at its source on 2026-09-25/26 and graded (A = government or peer-reviewed, B = state list, hospital site or industry report, C = news); anything that failed verification was dropped.
 
 **Problem.** Rural hospitals can't treat their sickest patients and have no shared, live bed system, so when the usual hub is full, staff phone hospitals one at a time while the patient waits. In Sunflower County, Mississippi (28.9% poverty against 17.8% statewide, median household income $39,956), the nearest large hospital to Indianola — Greenwood, 27 miles away — had already shut its ICU before it laid off 86 staff and closed four services on April 8, 2026 ([Mississippi Free Press](https://www.mississippifreepress.org/struggling-greenwood-leflore-hospital-lays-off-86-employees-shuttering-four-more-services/)); it now runs as [UMMC Greenwood](https://umc.edu/greenwood) with a 24-hour ED. The next capable centers are 83–133 miles away in Jackson, Memphis and Little Rock.
 
@@ -312,11 +312,11 @@ A dark map in the middle, live call cards on the right, one recommendation at th
 
 | Area | Shows | Interaction |
 | --- | --- | --- |
-| Top bar | Case chip (62M, STEMI, onset 14:05) and two clocks side by side: Marco Polo elapsed, and "one by one: still on call 2 of 10" | None |
+| Top bar | Case chip (62M, STEMI, onset 14:05) and two clocks side by side: Project Uzima elapsed, and "one by one: still on call 2 of 10" | None |
 | Map (about 60%) | Indianola in the center; one line per agent to a real center; ground lines solid, air lines with a helicopter icon; centers outside the window greyed and dashed | Click a pin to open its card |
 | Cards (about 40%) | Agent id, hospital, status in words, ready time, transport mode and minutes, tier, one line of live transcript; greens rise to the top | Click for the full transcript |
 | Recommendation | Best center, time to treatment, mode; buttons Accept & release others, Choose another | Accept fires hold/release, SMS, physician bridge, twin |
-| Twin panel | The handoff twin after acceptance: QR and SMART Health Link, passcode, insurance line; the Marco Polo clock stops on Accept | Copy link (one-time) |
+| Twin panel | The handoff twin after acceptance: QR and SMART Health Link, passcode, insurance line; the Project Uzima clock stops on Accept | Copy link (one-time) |
 | Footer | Live tech counters (Realtime on call, GPT summaries, Location routes, DynamoDB events) and the label "Demo: hospital responses are simulated" | None |
 
 **Status colors** (always paired with a word and an icon)
@@ -350,13 +350,13 @@ Every existing product either serves the receiving hospital, works inside one ne
 | [Indiana MOCC](https://www.in.gov/grow-rural-health/initiatives/initiative-1) | 24/7 statewide transfer-coordination hub under the Rural Health Transformation Program; trauma, stroke, psychiatric, maternal; bids closed June 15, 2026 | State | A staffed call center for one state; proof that transfer coordination is now funded |
 | [Aurelian, Hyper](https://techcrunch.com/2025/08/27/911-centers-are-so-understaffed-theyre-turning-to-ai-to-answer-calls) | AI voice agents for 911 non-emergency calls; $14M Series A led by NEA, $6.3M seed | 911 centers | Inbound and non-emergency, not hospital-to-hospital |
 
-**Where Marco Polo sits.** Rural sender first; every capable center across networks and state lines; distance as a hard constraint; the calls themselves build the bed memory; the twin follows the patient. A state coordination center is a customer, not a competitor: its staff still dial one hospital at a time.
+**Where Project Uzima sits.** Rural sender first; every capable center across networks and state lines; distance as a hard constraint; the calls themselves build the bed memory; the twin follows the patient. A state coordination center is a customer, not a competitor: its staff still dial one hospital at a time.
 
 ## Safety and compliance
 
 The agent speeds up calls and carries records; it never makes a clinical decision, and the one real regulatory trap, paying per referral, is avoided by flat pricing.
 
-In June 2026 an AI bed system in Minas Gerais, Brazil (Core-MG) was blamed by a family after it downgraded a 32-year-old's severity score ("she would have been a 10, and the system only accepted her as a 6.8"); she waited five days for an ICU 186 miles away and died. The state disputes the claim ([Gizmodo, June 15, 2026](https://gizmodo.com/family-blames-ai-hospital-system-after-woman-dies-waiting-for-icu-bed-2000771949)). Marco Polo is designed as the opposite: it never scores severity.
+In June 2026 an AI bed system in Minas Gerais, Brazil (Core-MG) was blamed by a family after it downgraded a 32-year-old's severity score ("she would have been a 10, and the system only accepted her as a 6.8"); she waited five days for an ICU 186 miles away and died. The state disputes the claim ([Gizmodo, June 15, 2026](https://gizmodo.com/family-blames-ai-hospital-system-after-woman-dies-waiting-for-icu-bed-2000771949)). Project Uzima is designed as the opposite: it never scores severity.
 
 | Area | Risk | Guardrail |
 | --- | --- | --- |
@@ -480,7 +480,6 @@ The biggest risk is the live call failing on stage; a recorded backup run covers
 - [ ] Trauma: keep the 90-minute hard max (Memphis lands at 91 under the estimate model) or widen it once AWS routing gives real times?
 - [ ] Verify St. Dominic's cardiac capability through a reachable source so it can join the cardiac case.
 - [ ] Pricing: [$__ per hospital per month] for rural networks and an EMS agency tier.
-- [ ] Product name: "Marco Polo" is also a video-messaging app; fine for the hackathon, check before company use.
 - [ ] Add a second, smaller sending hospital (a critical access hospital such as North Sunflower Medical Center, Ruleville) as a backup demo start point.
 - [ ] Stedi: confirm the Mississippi Medicaid payer ID, or connect to Gainwell's 270/271 directly for production.
 - [ ] Pick a SMART Health Links viewer for the demo, or embed a minimal one in the dashboard.

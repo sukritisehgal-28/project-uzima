@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from services.shared import config
 from services.shared.schemas import AgentResult, Case, InsuranceCheck, TransportEstimate, TwinRequest
 
-app = FastAPI(title="Marco Polo handoff twin")
+app = FastAPI(title="Project Uzima handoff twin")
 STEDI = "https://healthcare.us.stedi.com/2024-04-01/change/medicalnetwork/eligibility/v3"
 BASE = os.getenv("HANDOFF_URL", "http://localhost:8004")
 VIEWER = os.getenv("SHL_VIEWER_URL", "https://shl-viewer.example/")   # any SMART Health Links viewer
@@ -54,7 +54,7 @@ def ips_bundle(case: Case, accepted_hospital_id: str, accepting_physician: str, 
     pid = "patient-1"
     entries: list[dict] = []
     entries.append({"resource": {"resourceType": "Patient", "id": pid, "gender": case.sex.lower(),
-                                 "extension": [{"url": "http://marco-polo.local/age-years", "valueInteger": case.age}]}})
+                                 "extension": [{"url": "http://uzima.local/age-years", "valueInteger": case.age}]}})
     entries.append({"resource": {"resourceType": "Condition", "id": "cond-1", "subject": {"reference": f"Patient/{pid}"},
                                  "code": {"text": case.condition}, "onsetDateTime": case.onset_or_last_known_well}})
     for i, (k, v) in enumerate(case.key_scores.items(), start=1):
@@ -80,7 +80,7 @@ def ips_bundle(case: Case, accepted_hospital_id: str, accepting_physician: str, 
                 "calls": [c.model_dump(mode="json") for c in calls]}
     composition = {"resourceType": "Composition", "id": "comp-1", "status": "final",
                    "type": {"coding": [{"system": "http://loinc.org", "code": "60591-5", "display": "Patient summary Document"}]},
-                   "subject": {"reference": f"Patient/{pid}"}, "date": now, "title": "Marco Polo handoff twin",
+                   "subject": {"reference": f"Patient/{pid}"}, "date": now, "title": "Project Uzima handoff twin",
                    "author": [{"display": case.sending_physician}],
                    "section": [
                        {"title": "Medication Summary", **({"entry": med_refs} if med_refs else {"emptyReason": {"text": "none reported at transfer"}})},
@@ -102,7 +102,7 @@ def make_shl(bundle: dict, passcode: str, hours: int = 24) -> tuple[str, str]:
     exp = int((datetime.now(timezone.utc) + timedelta(hours=hours)).timestamp())
     _store[twin_id] = {"jwe": jwe, "passcode": passcode, "exp": exp}
     payload = {"url": f"{BASE}/manifests/{twin_id}", "key": b64url(key), "exp": exp, "flag": "P",
-               "label": "Marco Polo handoff twin", "v": 1}
+               "label": "Project Uzima handoff twin", "v": 1}
     return twin_id, f"{VIEWER}#shlink:/{b64url(json.dumps(payload).encode())}"
 
 

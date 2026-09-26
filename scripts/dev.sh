@@ -13,7 +13,7 @@ start() { # name module port
 }
 cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
-echo "Marco Polo (integrations switch on as keys appear in .env):"
+echo "Project Uzima (integrations switch on as keys appear in .env):"
 start orchestrator services.orchestrator.app.main:app 8000
 start sync_openai  services.sync_openai.app.main:app  8001
 start sync_twilio  services.sync_twilio.app.main:app  8002

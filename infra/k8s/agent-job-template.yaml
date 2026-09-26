@@ -2,8 +2,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  generateName: marco-polo-agent-
-  namespace: marco-polo
+  generateName: project-uzima-agent-
+  namespace: project-uzima
 spec:
   backoffLimit: 0
   ttlSecondsAfterFinished: 300
@@ -12,10 +12,10 @@ spec:
       restartPolicy: Never
       containers:
         - name: agent
-          image: marco-polo/agent:latest
+          image: project-uzima/agent:latest
           env:
             - name: AGENT_HEADER
               value: '{"agent_id":"A1","hospital":"","phone":"","lat":0,"lng":0,"live":false}'
           envFrom:
             - secretRef:
-                name: marco-polo-secrets
+                name: project-uzima-secrets

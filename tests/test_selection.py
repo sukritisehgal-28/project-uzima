@@ -36,3 +36,17 @@ def test_rank_orders_by_treatment_start():
               {"status": "declined", "treatment_start_min": None, "transport": t},
               {"status": "available", "treatment_start_min": 52, "transport": t}])
     assert [x["treatment_start_min"] for x in r] == [52, 90]
+
+
+def test_clinician_window_limits_the_zone():
+    wide = select_centers(Specialty.cardiac_icu)
+    narrow = select_centers(Specialty.cardiac_icu, window_min=50)
+    assert 0 < len(narrow) < len(wide)
+    assert all(min(h.transport.est_ground_min, h.transport.est_air_min) <= 50 for h in narrow)
+
+
+def test_several_live_phones(monkeypatch):
+    monkeypatch.setenv("DEMO_HOSPITAL_PHONES", "+15550000001,+15550000002,+15550000003")
+    hs = select_centers(Specialty.cardiac_icu)
+    assert [h.live for h in hs[:4]] == [True, True, True, False]
+    assert hs[1].phone == "+15550000002" and hs[3].phone == "[simulated]"

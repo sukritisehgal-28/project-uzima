@@ -11,7 +11,7 @@ from services.shared.schemas import AgentHeader, AgentResult, Status, Transcript
 
 LARGE = {"ummc", "baptist_memphis", "methodist_university", "uams", "baptist_little_rock", "regional_one", "nmmc_tupelo"}
 HANDOFF_MIN = 10
-OPENING = "Hi, this is an AI transfer assistant calling for South Sunflower County Hospital. This call is recorded."
+OPENING = "Hi, this is an AI assistant from Project Uzima, calling for a referring doctor at South Sunflower County Hospital. This call is recorded."
 
 
 def _now():

@@ -4,3 +4,4 @@ pydantic>=2
 httpx
 twilio
 livekit-api
+websockets>=12

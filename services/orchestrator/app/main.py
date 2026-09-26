@@ -15,7 +15,7 @@ from services.shared import config
 from services.shared.clients import client
 from services.shared.schemas import AcceptRequest, AgentHeader, AgentResult, Case, Specialty, TransferEvent, TwinRequest
 
-app = FastAPI(title="Marco Polo orchestrator")
+app = FastAPI(title="Project Uzima orchestrator")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 DATA = json.loads((Path(__file__).resolve().parents[3] / "data" / "hospitals.json").read_text())
 CENTERS = {c["id"]: c for c in DATA["centers"]}
@@ -33,10 +33,26 @@ QUESTION = {
 }
 
 
-def select_centers(specialty: Specialty, memory: dict | None = None, override_outside: bool = False) -> list[AgentHeader]:
-    """Every capable center inside the survival window, nearest first; skips centers that said no in the last 30 min."""
+def live_phones() -> list[str]:
+    """Verified demo phones that get a real call, nearest hospital first. DEMO_HOSPITAL_PHONES="+1...,+1...,+1..."."""
+    raw = config.env("DEMO_HOSPITAL_PHONES") or config.env("DEMO_HOSPITAL_PHONE")
+    return [p.strip() for p in raw.split(",") if p.strip()] or ["[demo phone]"]
+
+
+def window_for(specialty: Specialty, window_min: int | None = None) -> dict:
+    """The case's default window, or the clinician's own "care within N minutes" (10 to 120)."""
+    w = dict(DATA["windows"][DATA["demo_cases"][specialty.value]["window"]])
+    if window_min:
+        m = max(10, min(120, int(window_min)))
+        w.update(transport_budget_min=m, hard_max_min=m, label=f"Care within {m} min")
+    return w
+
+
+def select_centers(specialty: Specialty, memory: dict | None = None, override_outside: bool = False,
+                   window_min: int | None = None) -> list[AgentHeader]:
+    """Every capable center inside the window, nearest first; skips centers that said no in the last 30 min."""
     case = DATA["demo_cases"][specialty.value]
-    window = DATA["windows"][case["window"]]
+    window = window_for(specialty, window_min)
     now, picked = time.time(), []
     for cid in case["center_ids"]:
         t = transport(DATA["sending"], CENTERS[cid], window)
@@ -47,13 +63,14 @@ def select_centers(specialty: Specialty, memory: dict | None = None, override_ou
             continue
         picked.append((cid, t))
     if not picked and memory:            # nothing left after memory skips: call everyone in the window again
-        return select_centers(specialty, None, override_outside)
+        return select_centers(specialty, None, override_outside, window_min)
+    phones = live_phones()
     headers = []
     for i, (cid, t) in enumerate(picked, start=1):
         c = CENTERS[cid]
         headers.append(AgentHeader(agent_id=f"A{i}", hospital_id=cid, hospital=c["name"], lat=c["lat"], lng=c["lng"],
-                                   phone=config.env("DEMO_HOSPITAL_PHONE", "[demo phone]") if i == 1 else "[simulated]",
-                                   specialty=specialty, capability_question=QUESTION[specialty], transport=t, live=(i == 1)))
+                                   phone=phones[i - 1] if i <= len(phones) else "[simulated]",
+                                   specialty=specialty, capability_question=QUESTION[specialty], transport=t, live=(i <= len(phones))))
     return headers
 
 
@@ -80,11 +97,11 @@ async def start_transfer(case: Case, background: BackgroundTasks):
             memory = (await c.get("/memory")).json()
     except Exception:
         memory = {}
-    headers = select_centers(case.specialty, memory)
+    headers = select_centers(case.specialty, memory, window_min=case.window_min)
     tid = uuid.uuid4().hex[:10]
     TRANSFERS[tid] = {"case": case, "headers": headers, "started": time.time(), "state": "searching"}
     await _tevent(tid, "search_started", agents=[h.model_dump(mode="json") for h in headers],
-                  window=DATA["windows"][DATA["demo_cases"][case.specialty.value]["window"]])
+                  window=window_for(case.specialty, case.window_min))
     background.add_task(get_launcher().launch, tid, headers)
     return {"transfer_id": tid, "agents": [h.model_dump(mode="json") for h in headers]}
 
@@ -115,14 +132,9 @@ async def accept(tid: str, req: AcceptRequest):
         raise HTTPException(409, "no available center to accept yet")
     t["state"] = "accepted"
     await _tevent(tid, "held", chosen["hospital_id"])
-    async with client("sync_twilio") as c:
-        for r in ranking:
-            if r["hospital_id"] != chosen["hospital_id"]:
-                await c.post("/release", json={"hospital": r["hospital"], "phone": config.env("DEMO_HOSPITAL_PHONE", "[demo phone]")})
-                await _tevent(tid, "released", r["hospital_id"])
-        await c.post("/bridge", json={"a": config.env("DEMO_SENDING_DOCTOR_PHONE", "[sending doctor]"),
-                                      "b": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
-    await _tevent(tid, "accepted", chosen["hospital_id"], accepting_physician=req.accepting_physician)
+    for r in ranking:                      # hospitals never get texts; the agent already thanked them on the call
+        if r["hospital_id"] != chosen["hospital_id"]:
+            await _tevent(tid, "released", r["hospital_id"])
     insurance = None
     if config.env("STEDI_MOCK_MEMBER_ID"):
         insurance = {k: config.env(f"STEDI_MOCK_{k.upper()}") for k in ("payer_id", "member_id", "first", "last", "dob")}
@@ -130,9 +142,19 @@ async def accept(tid: str, req: AcceptRequest):
                            transport=chosen["transport"], calls=[AgentResult(**r) for r in results], insurance_test=insurance)
     async with client("handoff") as c:
         twin = (await c.post("/twins", json=twin_req.model_dump(mode="json"))).json()
+    case: Case = t["case"]
+    tr = chosen["transport"]
+    travel = tr["est_ground_min"] if tr["recommended_mode"] == "ground" else tr["est_air_min"]
+    ins = (twin.get("insurance") or {}).get("payer")
+    summary = (f"This is the Uzima assistant with the referral summary. {case.age} year old {case.sex.lower()}, {case.condition}. "
+               f"Arriving by {tr['recommended_mode']} in about {travel} minutes. "
+               + (f"Insurance checked with {ins}. " if ins else "") +
+               f"The full record passcode is {' '.join(str(twin['passcode']))}. Connecting you to the referring doctor now.")
     async with client("sync_twilio") as c:
-        await c.post("/sms", json={"to": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]"),
-                                   "text": f"Marco Polo transfer to {chosen['hospital']}: case summary {twin['shlink']} (passcode given on the call)"})
+        await c.post("/bridge", json={"transfer_id": tid, "agent_id": chosen["agent_id"], "summary": summary,
+                                      "clinician": config.env("DEMO_SENDING_DOCTOR_PHONE", "[referring clinician]"),
+                                      "fallback_hospital": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
+    await _tevent(tid, "accepted", chosen["hospital_id"], accepting_physician=req.accepting_physician)
     t["twin"] = {"shlink": twin["shlink"], "passcode": twin["passcode"], "hospital": chosen["hospital"], "insurance": twin.get("insurance")}
     await _tevent(tid, "twin_ready", chosen["hospital_id"], **t["twin"])
     return {"accepted": chosen["hospital"], "treatment_start_min": chosen["treatment_start_min"], "twin": t["twin"]}

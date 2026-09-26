@@ -11,8 +11,8 @@ export type Twin = { shlink: string; passcode: string; hospital: string; insuran
 export async function getCenters() {
   return (await fetch(`${ORCH}/centers`)).json();
 }
-export async function startTransfer(specialty: string) {
-  const body = { age: 62, sex: "Male", specialty, condition: LABEL[specialty], onset_or_last_known_well: new Date().toISOString(), key_scores: {} };
+export async function startTransfer(specialty: string, window_min?: number) {
+  const body = { age: 62, sex: "Male", specialty, condition: LABEL[specialty], onset_or_last_known_well: new Date().toISOString(), key_scores: {}, window_min };
   const r = await fetch(`${ORCH}/transfers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return r.json() as Promise<{ transfer_id: string; agents: Agent[] }>;
 }

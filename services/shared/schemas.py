@@ -1,4 +1,4 @@
-"""Schemas shared by every Marco Polo service (v2, Mississippi Delta)."""
+"""Schemas shared by every Project Uzima service."""
 from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional
@@ -30,6 +30,7 @@ class Case(BaseModel):
     sending_hospital_id: str = "south_sunflower"
     sending_physician: str = "[Dr. name]"
     callback_phone: str = "[demo phone]"
+    window_min: Optional[int] = None    # clinician's "care within N minutes"; overrides the case's default transport budget
 
 
 class TransportEstimate(BaseModel):

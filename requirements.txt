@@ -3,6 +3,7 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 pydantic>=2.6
 httpx>=0.27
+websockets>=12
 cryptography>=42
 pytest>=8
 # Optional, only when USE_AWS=1 / LAUNCH_MODE=k8s:

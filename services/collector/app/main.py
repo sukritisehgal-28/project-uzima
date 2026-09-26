@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from services.collector.app.storage import make_store
 from services.shared.schemas import AgentResult, CallEvent, TransferEvent
 
-app = FastAPI(title="Marco Polo collector")
+app = FastAPI(title="Project Uzima collector")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 store = make_store()
 _clients: set[WebSocket] = set()

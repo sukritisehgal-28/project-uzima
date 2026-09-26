@@ -1,11 +1,13 @@
-# Marco Polo
+# Project Uzima
 
-An AI agent swarm that finds an accepting ICU for a critical patient leaving a rural hospital — heart attack, stroke, or trauma — by calling every capable center inside the patient's survival window at the same time, then letting a physician confirm the best yes. In the game, one player calls "Marco" and everyone answers "Polo" at once.
+**The beds exist. We get people to them in time.**
 
-- PRD v2: [docs/PRD.md](docs/PRD.md)
-- Pitch deck (text and speaker notes): [docs/deck.md](docs/deck.md)
-- Team plan (three lanes, contracts, checkpoints): [docs/team-plan.md](docs/team-plan.md)
-- Demo region: Mississippi Delta — sending hospital South Sunflower County Hospital, Indianola; 15 verified receiving centers in MS, TN and AR.
+A clinician says what the patient needs and how fast. Uzima calls every capable hospital inside that time window at the same time, one AI agent per hospital. Each agent reads the answer back and only counts it once the hospital confirms. Plain rules pick the best confirmed yes, and one tap connects doctor to doctor. Hospitals never open anything: they just answer the phone.
+
+- Plan (v3, current): [docs/PLAN.md](docs/PLAN.md)
+- Demo script: [docs/demo-script.md](docs/demo-script.md)
+- Earlier plan (v2): [docs/archive/](docs/archive/)
+- Demo data: South Sunflower County Hospital, Indianola, MS as the sending hospital; 15 verified receiving centers in MS, TN and AR (`data/hospitals.json`).
 
 ## Layout
 
@@ -16,7 +18,7 @@ An AI agent swarm that finds an accepting ICU for a critical patient leaving a r
 | `services/orchestrator/` | Center selection inside the window, bed-memory skip, swarm launch, ranking, hold and release |
 | `services/agent/` | Sandbox template: live call (A1) or simulated responder + transcript; emits the four events |
 | `services/sync_openai/` | Rate limiter for model calls |
-| `services/sync_twilio/` | Twilio Voice + Media Streams ↔ OpenAI Realtime, SMS, physician bridge (own cluster) |
+| `services/sync_twilio/` | Twilio Voice + Media Streams ↔ OpenAI Realtime (`WS /media`), read-back and `report_capacity`, Connect on the live call |
 | `services/collector/` | Receives events/results, streams to the dashboard, bed memory, EMTALA log |
 | `services/handoff/` | Patient handoff twin: HL7 IPS bundle delivered as a SMART Health Link (JWE A256GCM, passcode, 24 h expiry), with a Stedi mock insurance check |
 | `apps/dashboard/` | React + Vite + Tailwind + MapLibre live map |
@@ -31,8 +33,8 @@ Everything runs locally with **no keys**: every integration has a mock, and addi
 
 ```bash
 make install          # Python venv + dashboard packages
-make test             # 7 tests, including the whole flow end to end in one process
-make dev              # all services + dashboard; open http://localhost:5173 and press "Find a bed"
+make test             # 15 tests, including the whole flow end to end in one process
+make dev              # all services + dashboard; open http://localhost:5173, set "Care within", press "Find a bed"
 make smoke            # (with make dev running) start a transfer, wait for answers, accept, print the twin link
 ```
 
@@ -40,12 +42,12 @@ make smoke            # (with make dev running) start a transfer, wait for answe
 | --- | --- | --- | --- |
 | Orchestrator | 8000 | Swarm runs in-process | `LAUNCH_MODE=k8s` (one Job per hospital); `USE_AWS=1` + `AWS_LOCATION_ROUTE_CALCULATOR` for road times |
 | OpenAI gateway | 8001 | Template transcripts | `OPENAI_API_KEY`, `OPENAI_MODEL` |
-| Twilio gateway | 8002 | Logs calls/SMS to `/outbox` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `PUBLIC_HOST` (ngrok), `DEMO_*_PHONE` |
+| Twilio gateway | 8002 | Logs calls/SMS to `/outbox` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `PUBLIC_HOST` (ngrok), `OPENAI_API_KEY`, `DEMO_HOSPITAL_PHONES`, `DEMO_SENDING_DOCTOR_PHONE` |
 | Collector | 8003 | In memory | `USE_AWS=1` + `DYNAMODB_TABLE` |
 | Handoff twin | 8004 | Offline insurance mock | `STEDI_TEST_API_KEY` + `STEDI_MOCK_*` (Stedi's documented mock member) |
 | Dashboard | 5173 | MapLibre demo tiles | `VITE_MAP_STYLE` (AWS Location map style URL) |
 
-`GET localhost:8000/health` shows which integrations are live. `SIM_A1_ANSWER=available` makes A1 say yes when there is no live call; `SIM_TIME_SCALE=0` makes simulated answers instant.
+`GET localhost:8000/health` shows which integrations are live. `SIM_A1_ANSWER=available` makes the live agents say yes when there is no live call; `SIM_TIME_SCALE=0` makes simulated answers instant.
 
 ## Architecture
 
@@ -101,17 +103,15 @@ sequenceDiagram
 
 ## Team
 
-Three equal lanes (~6 h of build each plus a third of the pitch) that merge without conflicts; details in [docs/team-plan.md](docs/team-plan.md).
-
-| Lane | Main role | Owns |
-| --- | --- | --- |
-| Engine | Voice and agents: live call, simulated hospitals, SMS and physician bridge | `services/agent`, `services/sync_twilio`, `services/sync_openai` |
-| Backbone | Orchestration and cloud: selection, ranking, hold and release, DynamoDB, AWS Location, EKS | `services/orchestrator`, `services/collector`, `infra`, `data` |
-| Face | Experience and handoff: dashboard, handoff twin (IPS + SMART Health Link + insurance), deck | `apps/dashboard`, `services/handoff`, `docs/deck.md` |
-
-Shared contracts live in `services/shared/schemas.py` and the service endpoints listed in the team plan; changing them needs a PR all three approve.
+| Who | Owns |
+| --- | --- |
+| Udit | Core and integration: orchestrator, collector, agents, infra, data. Presents. |
+| Sakshi | Voice: Twilio gateway, Media Streams to OpenAI Realtime bridge, Connect. |
+| Sukriti | Screen and submission: dashboard, video, docs. |
 
 ## Rules
-- A1 is a real call to a teammate's phone. Every other agent runs the same code against a simulated responder.
+
+- Hospitals get a phone call and nothing else: no app, link, text or QR code.
+- Live calls go only to verified teammate phones (`DEMO_HOSPITAL_PHONES`). Every other agent runs the same code against a simulated responder.
 - Never dial the real hospital numbers in `data/hospitals.json` (`phone_reference` is reference only).
-- Fictional patients only; no severity scoring by the AI; a physician accepts every transfer.
+- The agent says it is an AI in its first line, reads every answer back, and a clinician confirms every transfer. Fictional patients only.

@@ -1,11 +1,11 @@
-# Marco Polo — pitch deck (v2)
+# Project Uzima — pitch deck (v2)
 
 18 slides for a 3-minute pitch. Text and speaker notes as published; every number is sourced in `docs/numbers.md` and `docs/PRD.md`. Fill in the bracketed placeholders on the day.
 
 ## 1. Cover
 - Healthcare AI Hackathon · AWS Builder Loft · Sept 26, 2026
 - Ten phone calls. One patient. No time.
-- Marco Polo is an AI agent swarm that finds an accepting ICU for heart attack, stroke and trauma patients by calling every capable hospital inside the survival window at once.
+- Project Uzima is an AI agent swarm that finds an accepting ICU for heart attack, stroke and trauma patients by calling every capable hospital inside the survival window at once.
 - [Team names] · [Contact]
 
 > Speaker notes: Open on the three short lines, then go straight to Indianola. No stories from the pandemic: everything in this deck is 2025-26 data, checked at the source.
@@ -62,14 +62,14 @@
 - Rural hospitals have no shared, live bed system. When the usual hub is full, staff call the next hospital, and the next, one at a time.
 - TODAY
 - 10 × N
-- MARCO POLO
+- PROJECT UZIMA
 - 1 × N
 - N = one phone call, about 1–2 minutes. Ten calls in a row is 15–20 minutes. Ten at once is one call's time.
 
 > Speaker notes: This is the whole insight. Point at the orange bar, then at the tiny blue stack. Same ten calls, one tenth of the time.
 
-## 6. Introducing Marco Polo
-- Introducing Marco Polo
+## 6. Introducing Project Uzima
+- Introducing Project Uzima
 - One request. Every capable ICU in the window, called at once.
 - The rural doctor names what the patient needs. An agent swarm phones every hospital that can treat it and can be reached in time, asks two questions, and a physician accepts the best yes.
 
@@ -206,7 +206,7 @@
 - ONE AT A TIME
 - 15–20 min
 - 10 hospitals × one call each, plus hold music and repeating the story.
-- MARCO POLO SWARM
+- PROJECT UZIMA SWARM
 - <2 min
 - Target: a held bed and a transport plan. Total time is the slowest single call, not the sum.
 - One call takes about 1–2 minutes. Measured in today's live demo: [__ sec]
@@ -226,7 +226,7 @@
 - 2:25 pm | Next search | Skips UMMC, calls Greenville first
 - The more transfers run, the more accurate the live bed map becomes.
 
-> Speaker notes: This is what makes Marco Polo a company, not a feature: the bed network builds itself from calls that already happen, and the twin makes every receiving hospital a user.
+> Speaker notes: This is what makes Project Uzima a company, not a feature: the bed network builds itself from calls that already happen, and the twin makes every receiving hospital a user.
 
 ## 15. Built for the gap nobody serves: the rural sender
 - Built for the gap nobody serves: the rural sender
@@ -237,7 +237,7 @@
 - Juvare EMResource | Statewide bed-capacity dashboards | Nobody makes the calls
 - Oregon, Washington, Indiana centers | Staffed state lines that place hard transfers | Nurses still work the phones: customers
 - Aurelian, Hyper | AI voice agents for 911 non-emergency calls | Inbound, not hospital to hospital
-- Marco Polo | Every ICU specialty, across networks and state lines, inside the survival window | Calls every capable center at once
+- Project Uzima | Every ICU specialty, across networks and state lines, inside the survival window | Calls every capable center at once
 
 > Speaker notes: Name the neighbours before a judge does. State coordination centers are not competitors: Oregon's and Washington's run on nurses and phones, and Indiana just put one out to bid. They are the first customers.
 
@@ -273,11 +273,11 @@
 
 > Speaker notes: Flat pricing is not only simpler; paying per referral would raise anti-kickback questions. Fill in the price before the pitch.
 
-## 18. Marco Polo
-- Marco Polo
+## 18. Project Uzima
+- Project Uzima
 - Every capable ICU, called at once, inside the time the patient has.
-- Why "Marco Polo"?
-- In the children's game, one player calls out "Marco!" and everyone answers "Polo!" at the same time, showing where they are. That is our product: one call goes out, every hospital answers at once, and each answer lands on the map.
+- Why "Uzima"?
+- Uzima (oo-ZEE-mah) is Swahili for life, being whole and well. That is our product: one call goes out, every hospital answers at once, and the patient gets to a bed in time.
 - [Team names] · [Contact] · Thank you
 
 > Speaker notes: Close on the product line, explain the name in one breath, and stop. Then take questions; the judge Q&A is in the PRD.
