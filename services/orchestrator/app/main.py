@@ -169,6 +169,7 @@ async def accept(tid: str, req: AcceptRequest):
             async with client("sync_twilio") as c:
                 response = await c.post("/bridge", json={"transfer_id": tid, "agent_id": chosen["agent_id"], "summary": summary,
                                               "clinician": config.env("DEMO_SENDING_DOCTOR_PHONE", "[referring clinician]"),
+                                              "accepting_doctor": config.env("DEMO_ACCEPTING_DOCTOR_PHONE"),
                                               "fallback_hospital": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
                 response.raise_for_status()
                 bridge = response.json()

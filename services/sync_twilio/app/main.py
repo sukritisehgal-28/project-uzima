@@ -18,10 +18,11 @@ from pydantic import BaseModel
 from services.shared import config
 from services.shared.clients import client
 from services.shared.schemas import AgentHeader, AgentResult, CallEvent, Status, TranscriptLine
-from services.sync_twilio.app import gather
+from services.sync_twilio.app import gather, doctor_handoff
 
 app = FastAPI(title="Project Uzima Twilio gateway")
 app.include_router(gather.router)
+app.include_router(doctor_handoff.router)
 log = logging.getLogger("sync_twilio")
 outbox: list[dict] = []   # what was sent (or would have been, in mock mode), for the demo and tests
 # (transfer_id, agent_id) -> {"header": dict, "transfer_id": str, "case_brief": str, "call_sid": str|None}
@@ -65,6 +66,7 @@ class BridgeRequest(BaseModel):
     agent_id: str = ""
     summary: str = ""              # read to the accepting hospital before the doctors are connected
     clinician: str = ""            # referring clinician's phone (the Connect button)
+    accepting_doctor: str = ""     # separate receiving doctor; summary before clinician is dialed
     fallback_hospital: str = ""    # used when the winner was a simulated hospital with no live call
     a: str = ""                    # legacy: dial a, then connect b
     b: str = ""
@@ -572,6 +574,8 @@ async def bridge(req: BridgeRequest):
     say = f"<Say>{escape(req.summary)}</Say>" if req.summary else ""
     if not config.has_twilio():
         return _mock("bridge", live=bool(entry), clinician=req.clinician or req.a, summary=req.summary)
+    if req.accepting_doctor:
+        return await doctor_handoff.start(req, entry)
     if entry and entry.get("call_sid"):
         twiml = f"<Response>{say}<Dial>{escape(req.clinician or req.a)}</Dial></Response>"
         try:
