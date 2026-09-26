@@ -1,10 +1,15 @@
-"""OpenAI gateway: a rate limiter (several requests at once, retry with backoff) plus persona transcripts.
-Without OPENAI_API_KEY it returns deterministic template text, so everything still runs."""
+"""OpenAI text gateway through AWS Bedrock, with bounded concurrency and SDK retries.
+USE_BEDROCK=0 keeps deterministic templates. AWS credentials come from the standard SDK chain.
+The separate Twilio Realtime audio bridge is not served by this text gateway.
+"""
 import asyncio
 import json
 import os
+from contextlib import closing
+from functools import lru_cache
 
-import httpx
+import boto3
+from botocore.config import Config
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -28,23 +33,44 @@ class PersonaRequest(BaseModel):
     answer: dict
 
 
+@lru_cache(maxsize=4)
+def _bedrock_client(region: str):
+    # Boto3 handles profiles, temporary session credentials, roles and SigV4 signing.
+    return boto3.Session().client("bedrock-runtime", region_name=region, config=Config(
+        connect_timeout=5, read_timeout=30, retries={"mode": "standard", "total_max_attempts": 4}))
+
+
+def _answer_text(content: str) -> str:
+    # Bedrock InvokeModel may prepend GPT OSS reasoning; expose only the final answer.
+    if not isinstance(content, str):
+        raise ValueError("Bedrock returned no text answer")
+    text = content.strip()
+    if text.startswith("<reasoning>"):
+        _, separator, text = text.partition("</reasoning>")
+        if not separator:
+            raise ValueError("Bedrock returned an unfinished reasoning block")
+        text = text.strip()
+    if not text:
+        raise ValueError("Bedrock returned an empty answer")
+    return text
+
+
+def _complete_bedrock(req: CompleteRequest) -> str:
+    model = req.model or config.env("BEDROCK_MODEL_ID") or "openai.gpt-oss-20b-1:0"
+    body = {"model": model, "messages": req.messages, "max_completion_tokens": 2048}
+    if req.json_mode:
+        body["response_format"] = {"type": "json_object"}
+    region = config.env("AWS_REGION") or config.env("AWS_DEFAULT_REGION") or "us-west-2"
+    response = _bedrock_client(region).invoke_model(
+        modelId=model, body=json.dumps(body), contentType="application/json", accept="application/json")
+    with closing(response["body"]) as stream:
+        result = json.loads(stream.read())
+    return _answer_text(result["choices"][0]["message"]["content"])
+
+
 async def complete(req: CompleteRequest) -> str:
     async with _slots:
-        body = {"model": req.model or config.env("OPENAI_MODEL", "gpt-4o-mini"), "messages": req.messages}
-        if req.json_mode:
-            body["response_format"] = {"type": "json_object"}
-        delay = 1.0
-        for attempt in range(4):
-            async with httpx.AsyncClient(timeout=30) as c:
-                r = await c.post("https://api.openai.com/v1/chat/completions", json=body,
-                                 headers={"Authorization": f"Bearer {config.env('OPENAI_API_KEY')}"})
-            if r.status_code in (429, 500, 502, 503) and attempt < 3:
-                await asyncio.sleep(delay)
-                delay *= 2
-                continue
-            r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
-    raise RuntimeError("unreachable")
+        return await asyncio.to_thread(_complete_bedrock, req)
 
 
 def template_lines(p: PersonaRequest) -> list[dict]:
@@ -63,14 +89,14 @@ def template_lines(p: PersonaRequest) -> list[dict]:
 
 @app.post("/complete")
 async def post_complete(req: CompleteRequest):
-    if not config.has_openai():
+    if not config.has_bedrock():
         return {"mode": "mock", "content": ""}
     return {"mode": "live", "content": await complete(req)}
 
 
 @app.post("/personas")
 async def personas(p: PersonaRequest):
-    if not config.has_openai():
+    if not config.has_bedrock():
         return {"mode": "mock", "lines": template_lines(p)}
     prompt = ("Write a realistic, very short phone exchange (3-5 lines) between an AI transfer assistant and the "
               f"transfer line at {p.hospital}. The assistant opens with: \"{OPENING}\" and asks: \"{p.question}\" "
@@ -85,4 +111,4 @@ async def personas(p: PersonaRequest):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "mode": "live" if config.has_openai() else "mock", "max_concurrent": MAX_CONCURRENT}
+    return {"ok": True, "mode": "live" if config.has_bedrock() else "mock", "max_concurrent": MAX_CONCURRENT}

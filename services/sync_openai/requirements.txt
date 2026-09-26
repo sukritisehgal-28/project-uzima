@@ -2,4 +2,4 @@ fastapi
 uvicorn[standard]
 pydantic>=2
 httpx
-openai
+boto3>=1.40

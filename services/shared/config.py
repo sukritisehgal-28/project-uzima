@@ -24,7 +24,12 @@ def url(service: str) -> str:
 
 
 def has_openai() -> bool:
+    """Legacy direct Realtime voice only; text generation uses has_bedrock()."""
     return bool(env("OPENAI_API_KEY"))
+
+
+def has_bedrock() -> bool:
+    return env("USE_BEDROCK", "0") == "1"
 
 
 def has_twilio() -> bool:
@@ -60,6 +65,6 @@ def sim_a1_answer() -> str:
 
 
 def integrations() -> dict:
-    return {"openai": "live" if has_openai() else "mock", "twilio": "live" if has_twilio() else "mock",
+    return {"openai": "live" if has_bedrock() else "mock", "twilio": "live" if has_twilio() else "mock",
             "stedi": "live" if has_stedi() else "mock", "dynamodb": "live" if has_dynamo() else "memory",
             "aws_location": "live" if has_location() else "estimates", "launcher": launch_mode()}

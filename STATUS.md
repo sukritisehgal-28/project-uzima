@@ -17,6 +17,7 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 | 9 | AgentCore sandboxes | Core | - | cut | 12:30 | Only if 1 to 4 are done by 1:30 |
 | 10 | Chaos "kill a sandbox" button | Core | - | cut | 12:30 | Only if 1 to 4 are done by 1:30 |
 | 11 | Patient handoff: encrypted record + transfer ticket (web + Apple Wallet) | Screen | Sukriti + Claude Code | done | 13:35 | Ticket at /tickets/{id} (its QR opens the record), viewer at /view, EMTALA handoff content with fictional demo data. Wallet needs the APPLE_* certificate; phones need an https tunnel to 8004 and HANDOFF_PUBLIC_URL |
+| 12 | OpenAI text generation through AWS Bedrock | Core / Voice integration | Udit + Codex | blocked | 13:34 | Bedrock text gateway implemented; 49 offline tests pass. Live verification needs AWS credentials; voice adaptation remains with the voice teammate |
 
 ## Checkpoints
 
@@ -42,3 +43,6 @@ Newest at the bottom. One line each: time, who, message.
 - 12:59 Udit + Codex to Screen lane: Existing mock UI labels A1 live and says doctors connected/record sent; callback_requested stays counted as pending after collector has all 10 results. Observed in transfer 9b271415fe; dashboard left unchanged.
 - 13:21 Udit + Codex: Ownership corrected per Udit: his friend handles calling; Udit owns core integration, presenting and AWS. Voice rows are pending teammate verification, not blocked by Udit lacking voice credentials. AWS stays disabled until access and resources are verified.
 - 13:22 Udit + Codex: AWS CLI 2.37.4 verified. STS checks for default, clinsight and clinsight-new all return NoCredentials, including a fresh interactive login shell. Installed boto3 locally; no AWS resources created or integration enabled. Need hackathon credentials saved in .env or an authenticated profile.
+- 13:26 Udit + Codex: Udit requires OpenAI through AWS Bedrock. Updating the text gateway in services/sync_openai, shared config, dependency/env setup and AWS docs; no endpoint shape changes. Voice teammate must adapt the existing direct Realtime bridge separately; do not claim it runs through Bedrock.
+- 13:30 Udit + Codex: Updating AGENTS.md and the README integration row to reflect Udit's Bedrock requirement. Text generation uses the AWS credential chain; direct Realtime voice remains a documented migration dependency owned by the voice teammate.
+- 13:34 Udit + Codex: Text gateway now invokes OpenAI GPT OSS through Bedrock with AWS authentication, bounded concurrency and retries, JSON support and template fallback. No direct OpenAI text requests remain. 49 offline tests pass; STS still reports Unable to locate credentials, so USE_BEDROCK and USE_AWS remain disabled and no live AWS result is claimed. Setup and a live verification request are in infra/aws/README.md.

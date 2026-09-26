@@ -41,7 +41,7 @@ make smoke            # (with make dev running) start a transfer, wait for answe
 | Service | Port | Without keys | Switches to live when `.env` has |
 | --- | --- | --- | --- |
 | Orchestrator | 8000 | Swarm runs in-process | `LAUNCH_MODE=k8s` (one Job per hospital); `USE_AWS=1` + `AWS_LOCATION_ROUTE_CALCULATOR` for road times |
-| OpenAI gateway | 8001 | Template transcripts | `OPENAI_API_KEY`, `OPENAI_MODEL` |
+| OpenAI text gateway via Bedrock | 8001 | Template transcripts | `USE_BEDROCK=1`, AWS credentials, `AWS_REGION`, `BEDROCK_MODEL_ID` (default `openai.gpt-oss-20b-1:0`) |
 | Twilio gateway | 8002 | Logs calls/SMS to `/outbox` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `PUBLIC_HOST` (ngrok), `OPENAI_API_KEY`, `DEMO_HOSPITAL_PHONES`, `DEMO_SENDING_DOCTOR_PHONE` |
 | Collector | 8003 | In memory | `USE_AWS=1` + `DYNAMODB_TABLE` |
 | Handoff twin + ticket | 8004 | Offline insurance mock; web ticket at `/tickets/{id}`, record viewer at `/view` | `STEDI_TEST_API_KEY` + `STEDI_MOCK_*`; `HANDOFF_PUBLIC_URL` (https tunnel to 8004) for phones; `APPLE_*` for Apple Wallet |
