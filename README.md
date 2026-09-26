@@ -3,6 +3,8 @@
 An AI agent swarm that finds an accepting ICU for a critical patient leaving a rural hospital — heart attack, stroke, or trauma — by calling every capable center inside the patient's survival window at the same time, then letting a physician confirm the best yes. In the game, one player calls "Marco" and everyone answers "Polo" at once.
 
 - PRD v2: [docs/PRD.md](docs/PRD.md)
+- Pitch deck (text and speaker notes): [docs/deck.md](docs/deck.md)
+- Team plan (three lanes, contracts, checkpoints): [docs/team-plan.md](docs/team-plan.md)
 - Demo region: Mississippi Delta — sending hospital South Sunflower County Hospital, Indianola; 15 verified receiving centers in MS, TN and AR.
 
 ## Layout
@@ -20,7 +22,8 @@ An AI agent swarm that finds an accepting ICU for a critical patient leaving a r
 | `apps/dashboard/` | React + Vite + Tailwind + MapLibre live map |
 | `infra/` | Kubernetes Job template, App Runner fallback, DynamoDB table |
 | `scripts/run_local_swarm.py` | Whole swarm in one process, no network: `python3 scripts/run_local_swarm.py cardiac_icu` |
-| `docs/` | Verified numbers with sources and grades, competitors, demo script |
+| `scripts/replay_fixture.py` + `data/fixtures/` | Replay sample events into the collector so the dashboard moves without a live call |
+| `docs/` | PRD, pitch deck text, team plan, verified numbers with grades, competitors, demo script |
 
 ## Architecture
 
@@ -73,6 +76,18 @@ sequenceDiagram
 | Trauma (adult, burn, pediatric) | 60 min | 90 min |
 
 **Deployment.** EKS for the swarm and services; the Twilio synchronizer in its own cluster; DynamoDB for memory, log and twins; AWS Location for routing and tiles; App Runner (or one EC2 box) and `scripts/run_local_swarm.py` as the no-Kubernetes fallback. Live voice Option A is Twilio Media Streams + OpenAI Realtime; Option B (fallback) is a Retell or Vapi agent on an OpenAI model. The handoff twin is an IPS-shaped FHIR bundle encrypted as a SMART Health Link; the eligibility check (X12 270/271) runs after acceptance and never gates the transfer (EMTALA 42 CFR 489.24(d)(4)).
+
+## Team
+
+Three lanes that merge without conflicts (details in [docs/team-plan.md](docs/team-plan.md)):
+
+| Lane | Main role | Owns |
+| --- | --- | --- |
+| Engine | The live call and the agents | `services/agent`, `services/sync_twilio`, `services/sync_openai` |
+| Backbone | Orchestration, data, cloud, handoff twin | `services/orchestrator`, `services/collector`, `services/handoff`, `infra`, `data` |
+| Face | Dashboard, pitch, demo | `apps/dashboard`, `docs/deck.md`, backup video |
+
+Shared contracts live in `services/shared/schemas.py` and the collector endpoints; changing them needs a PR all three approve.
 
 ## Rules
 - A1 is a real call to a teammate's phone. Every other agent runs the same code against a simulated responder.
