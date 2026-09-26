@@ -1,8 +1,10 @@
 """Pure logic of the live call bridge: report_capacity args -> answer_recorded data + AgentResult. Offline."""
 from datetime import datetime, timedelta, timezone
 
+from fastapi.testclient import TestClient
+
 from services.shared.schemas import AgentHeader, Status, TranscriptLine
-from services.sync_twilio.app.main import answer_data, build_instructions, build_result, default_brief
+from services.sync_twilio.app.main import _twiml_url, answer_data, app, build_instructions, build_result, default_brief
 
 H = AgentHeader(agent_id="A1", hospital_id="greenville", hospital="Delta Regional", phone="+15550100", lat=33.4, lng=-91.0,
                 specialty="cardiac_icu", capability_question="Do you have a cardiac ICU bed and a cath lab team available right now?",
@@ -50,3 +52,16 @@ def test_instructions_disclose_ai_and_ask_question():
     text = build_instructions(H, default_brief(H))
     assert "AI assistant" in text and H.capability_question in text and "report_capacity" in text
     assert "Delta Regional" in default_brief(H)
+
+
+def test_twiml_served_by_url_for_get_and_post(monkeypatch):
+    monkeypatch.setenv("PUBLIC_HOST", "abcd.ngrok-free.app")
+    twiml = '<Response><Say>Hi &amp; bye</Say><Dial>+15550100</Dial></Response>'
+    url = _twiml_url(twiml)
+    assert url.startswith("https://abcd.ngrok-free.app/twiml/")
+    path = url.removeprefix("https://abcd.ngrok-free.app")
+    tc = TestClient(app)
+    for r in (tc.post(path), tc.get(path)):
+        assert r.status_code == 200 and r.text == twiml
+        assert r.headers["content-type"].startswith("text/xml")
+    assert tc.post("/twiml/nope").status_code == 404

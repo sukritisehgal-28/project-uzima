@@ -12,9 +12,10 @@ import logging
 from datetime import datetime, timezone
 from html import escape
 from typing import Any, Optional
+from uuid import uuid4
 
 import httpx
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, HTTPException, Response, WebSocket
 from pydantic import BaseModel
 
 from services.shared import config
@@ -27,6 +28,9 @@ outbox: list[dict] = []   # what was sent (or would have been, in mock mode), fo
 # (transfer_id, agent_id) -> {"header": dict, "transfer_id": str, "case_brief": str, "call_sid": str|None}
 # Filled by POST /call, read by /media (same process). call_sid is set once the stream starts.
 live_calls: dict[tuple[str, str], dict] = {}
+# id -> TwiML document. Twilio is sent Url=https://PUBLIC_HOST/twiml/{id} instead of inline Twiml=
+# (inline Twiml= is rejected on our account: "trial accounts have limited parameter access").
+twiml_docs: dict[str, str] = {}
 
 HANDOFF_MIN = 10              # same as call_sim.HANDOFF_MIN
 CLOSING_MAX_S = 12.0          # after the tool call, stop the model this long later even if playback never confirmed
@@ -80,6 +84,21 @@ def _mock(kind: str, **payload) -> dict:
     return {"mode": "mock", "kind": kind}
 
 
+def _twiml_url(twiml: str) -> str:
+    """Store a TwiML document and return the public URL Twilio fetches it from (GET /twiml/{id})."""
+    doc_id = uuid4().hex
+    twiml_docs[doc_id] = twiml
+    return f"https://{config.env('PUBLIC_HOST')}/twiml/{doc_id}"
+
+
+@app.api_route("/twiml/{doc_id}", methods=["GET", "POST"])
+def twiml_doc(doc_id: str):
+    """Twilio fetches call instructions here (POST by default)."""
+    if doc_id not in twiml_docs:
+        raise HTTPException(404, "unknown twiml id")
+    return Response(content=twiml_docs[doc_id], media_type="text/xml")
+
+
 @app.post("/call")
 async def call(req: CallRequest):
     agent_id = str(req.header.get("agent_id", ""))
@@ -91,7 +110,7 @@ async def call(req: CallRequest):
     twiml = (f'<Response><Connect><Stream url="wss://{public}/media">'
              f'<Parameter name="transfer_id" value="{escape(req.transfer_id)}"/>'
              f'<Parameter name="agent_id" value="{escape(req.header["agent_id"])}"/></Stream></Connect></Response>')
-    r = await _twilio("Calls.json", {"To": req.header["phone"], "From": config.env("TWILIO_FROM_NUMBER"), "Twiml": twiml})
+    r = await _twilio("Calls.json", {"To": req.header["phone"], "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml)})
     live_calls[(req.transfer_id, agent_id)]["call_sid"] = r.get("sid")
     return {"mode": "live", "sid": r.get("sid")}
 
@@ -526,11 +545,11 @@ async def bridge(req: BridgeRequest):
         return _mock("bridge", live=bool(entry), clinician=req.clinician or req.a, summary=req.summary)
     if entry and entry.get("call_sid"):
         twiml = f"<Response>{say}<Dial>{escape(req.clinician or req.a)}</Dial></Response>"
-        r = await _twilio(f"Calls/{entry['call_sid']}.json", {"Twiml": twiml})
+        r = await _twilio(f"Calls/{entry['call_sid']}.json", {"Url": _twiml_url(twiml)})
         return {"mode": "live", "sid": r.get("sid"), "via": "live_call"}
     to, other = (req.clinician or req.a), (req.fallback_hospital or req.b)
     twiml = f"<Response><Say>Connecting you to the accepting hospital.</Say><Dial>{escape(other)}</Dial></Response>"
-    r = await _twilio("Calls.json", {"To": to, "From": config.env("TWILIO_FROM_NUMBER"), "Twiml": twiml})
+    r = await _twilio("Calls.json", {"To": to, "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml)})
     return {"mode": "live", "sid": r.get("sid"), "via": "new_call"}
 
 
