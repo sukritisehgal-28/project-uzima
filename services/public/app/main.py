@@ -5,8 +5,10 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
 
 from services.shared import config
+from services.public.app.dashboard import router as dashboard_router
 
 app = FastAPI(title="Uzima public demo gateway")
+app.include_router(dashboard_router)
 
 
 @app.get("/health")

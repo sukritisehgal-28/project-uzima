@@ -27,6 +27,8 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 
 | 17 | Patient information delivery status for the demo | Screen / Handoff | Udit + Codex | done | 15:12 | Dashboard shows recipient and Patient information sent after call end, clearly labeled simulated delivery; existing record accessible through ticket; 79 tests/build pass |
 
+| 18 | Vercel dashboard deployment with protected live backend | Screen / Core | Udit + Codex | done | 15:27 | Vercel preview ready; access-code protected relay; 81 Python and 3 relay tests pass; live backend remains on laptop/tunnel |
+
 ## Checkpoints
 
 - 1:00 one live call works
@@ -86,3 +88,7 @@ Newest at the bottom. One line each: time, who, message.
 - 15:11 Udit + Codex: User requests Patient information sent and explicitly permits mocking delivery. Touching dashboard UI only, using completed bridge status and the existing accepted record. Hospital-system delivery will remain clearly labeled simulated; no email, SMS or external patient-data transmission.
 
 - 15:12 Udit + Codex: Verified completed demo shows Patient information sent, Demo · simulated delivery, actual receiving hospital, and record contents; refresh preserves it. Pending/failed connections keep the record ready instead. Fixed restored timer values drifting negative during dashboard updates. UI-only delivery mock; no external transmission added.
+
+- 15:22 Udit + Codex: User requested Vercel after AWS hosting permissions were denied. Touching dashboard, public gateway and deployment tests/docs. Public dashboard API requires a separate demo access code; no provider credentials enter the frontend. Vercel login pending.
+
+- 15:27 Udit + Codex: Vercel preview ready at https://project-uzima-my1s60pe9-uditanshu-tomars-projects.vercel.app . Hosted dashboard requires the private demo access code and uses status polling; backend relay tests reject unauthenticated/private routes. Provider credentials remain local. Public gateway health and preserved completed transfer verified through the tunnel. No calls placed. CLI initially defaulted the first deployment to production; replaced it with an explicit preview. Deployment instructions in docs/VERCEL.md.
