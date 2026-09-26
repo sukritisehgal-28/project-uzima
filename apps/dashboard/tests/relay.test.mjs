@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import handler from '../api/[...path].js';
+import handler from '../api/relay.js';
 
 function response() {
   return { headers: {}, code: 200, body: undefined,
@@ -35,7 +35,7 @@ test('relay forwards allowed requests and preserves failed upstream status', asy
   };
   try {
     const res = response();
-    await handler({ url: '/api/transfers/abcdef1234/accept', method: 'POST', headers: {}, body: { hospital_id: 'demo' } }, res);
+    await handler({ url: '/api/relay?path=transfers/abcdef1234/accept', query: { path: 'transfers/abcdef1234/accept' }, method: 'POST', headers: {}, body: { hospital_id: 'demo' } }, res);
     assert.equal(res.code, 409);
     assert.equal(res.headers['Cache-Control'], 'no-store');
     assert.match(res.body, /no available hospital/);

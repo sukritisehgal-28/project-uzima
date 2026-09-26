@@ -10,14 +10,20 @@ This is a hackathon prototype using fictional patients and teammate phones. Rece
 
 - **OpenAI through AWS Bedrock:** GPT OSS 20B in `us-west-2`; text generation and interpretation of spoken hospital responses.
 - **Voice:** Twilio speech recognition and speech synthesis, with a staged availability → ready time → read-back → confirmation flow. Default `VOICE_PROVIDER=bedrock_gather`; no direct OpenAI key required. A legacy Realtime implementation remains available only through explicit configuration.
-- **Core:** local asynchronous agents, confirmed-result ranking, collector and live dashboard.
+- **Core:** asynchronous agents, confirmed-result ranking, collector and live dashboard.
 - **Handoff:** encrypted FHIR-shaped record, transfer ticket and browser viewer, 24-hour expiry. No record passcode; possession of the link grants access. Records and tickets currently live in memory.
 - **Data:** 18 receiving centers; transport times are estimates. Hospital capability sources are in `data/hospitals.json`.
 - **Not active:** DynamoDB, AWS Location, EKS, AgentCore, Apple Wallet signing and live insurance verification. Current workshop permissions deny the DynamoDB and Location checks. Insurance is explicitly mocked.
 
 See [the final integration plan](docs/INTEGRATION_PLAN.md), [demo script](docs/demo-script.md), and [team board](STATUS.md). The older [project plan](docs/PLAN.md) describes the broader design; this README and the final integration plan describe the release.
 
-## Run
+## Hosted demo
+
+Open [project-uzima.vercel.app](https://project-uzima.vercel.app/). The dashboard runs on Vercel and the backend runs on Google Cloud Run. AWS Bedrock provides the AI; Twilio handles calls. No laptop or tunnel is needed. Start a new search: older local transfers were not migrated.
+
+Deployment details: [GCP backend](infra/gcp/README.md) and [Vercel dashboard](docs/VERCEL.md). Temporary AWS workshop credentials must be renewed when they expire.
+
+## Run locally
 
 ```bash
 make install
@@ -35,7 +41,7 @@ make smoke              # simulated rehearsal; refuses to dial live phones
 
 For an offline rehearsal, use `TWILIO_ENABLED=0`, `SIM_A1_ANSWER=available`. Leave `USE_BEDROCK=1` to exercise AWS text generation, or use `0` for deterministic template transcripts. Restart `make dev` after environment changes.
 
-## Live phone setup
+## Local live phone setup
 
 1. Set valid AWS credentials, `USE_BEDROCK=1`, `AWS_REGION=us-west-2`, `BEDROCK_MODEL_ID=openai.gpt-oss-20b-1:0`.
 2. Set Twilio account SID, auth token and voice number. Add only consenting teammate numbers to `DEMO_HOSPITAL_PHONES`, `DEMO_SENDING_DOCTOR_PHONE` and `DEMO_ACCEPTING_DOCTOR_PHONE`.
@@ -55,10 +61,10 @@ For an offline rehearsal, use `TWILIO_ENABLED=0`, `SIM_A1_ANSWER=available`. Lea
 | Voice | 8002 | Twilio dial/control and signed speech callbacks |
 | Collector | 8003 | Call results, events and dashboard WebSocket |
 | Handoff | 8004 | Encrypted records, transfer tickets, viewer |
-| Public gateway | 8005 | Only voice callbacks, TwiML documents and handoff links |
+| Public gateway | 8005 locally / 8080 in cloud | Dashboard API, signed voice callbacks, TwiML documents and handoff links |
 | Dashboard | 5173 | Clinician map and transfer controls |
 
-The public gateway excludes call creation, doctor connection, transfer creation and internal result endpoints. Speech callbacks require a valid Twilio signature. Keep the Twilio service to one worker because active calls are stored in memory.
+The public gateway allows dashboard search and acceptance requests but excludes direct internal call, bridge and result endpoints. Speech callbacks require a valid Twilio signature. Keep the Twilio service to one worker because active calls are stored in memory.
 
 ## Reliability and validation
 
@@ -71,7 +77,7 @@ The public gateway excludes call creation, doctor connection, transfer creation 
 
 ## Demo limits
 
-This runs on one laptop with a temporary HTTPS tunnel; it is not a cloud deployment. Memory resets when services restart. Travel estimates and timing comparisons are demo assumptions. The encrypted handoff format and clinical content have not been certified for clinical use. Never dial real hospital reference numbers in the dataset.
+The hosted demo uses one Cloud Run instance. Transfers, calls and tickets are held in memory and reset when that instance restarts or is redeployed. Travel estimates and timing comparisons are demo assumptions. The encrypted handoff format and clinical content have not been certified for clinical use. Never dial real hospital reference numbers in the dataset.
 
 ## Team
 

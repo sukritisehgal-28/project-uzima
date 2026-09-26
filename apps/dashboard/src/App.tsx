@@ -81,7 +81,7 @@ export default function App() {
       setSending(d.sending);
       setNames(Object.fromEntries(d.centers.map((c: any) => [c.id, c.short_name ?? c.name])));
       setWindows(Object.fromEntries(Object.entries(d.demo_cases).map(([k, v]: [string, any]) => [k, d.windows[v.window]])));
-    }).catch(() => setError("The demo backend is unavailable. Keep the host laptop and tunnel running."));
+    }).catch(() => setError("The demo backend is unavailable. Please try again shortly."));
     getHealth().then((h) => setLiveCalls(h?.integrations?.twilio === "live")).catch(() => {});
   }, []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);

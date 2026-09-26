@@ -1,6 +1,6 @@
 # Vercel demo hosting
 
-The React dashboard and its narrow API relay run on Vercel. The existing Python services, AWS Bedrock integration and Twilio phone calls continue running on the presenter’s laptop. Keep those services and the HTTPS tunnel running. This is a hosted dashboard with a temporary backend, not an independent cloud deployment of the phone service.
+The React dashboard and API relay run at `https://project-uzima.vercel.app/`. The Python backend runs on Google Cloud Run at `https://uzima-backend-704882703182.us-central1.run.app`. AWS Bedrock provides the AI model and Twilio handles phone calls. The host laptop and temporary tunnel are no longer needed for the cloud deployment. See `infra/gcp/README.md` for backend operation.
 
 ## Configuration
 
@@ -12,12 +12,12 @@ From `apps/dashboard`, link the desired Vercel project and deploy a preview with
 vercel deploy --yes --target preview \
   --build-env VITE_ORCHESTRATOR_URL=/api \
   --build-env VITE_COLLECTOR_WS= \
-  --env UZIMA_BACKEND_URL=https://YOUR-CALLBACK-HOST
+  --env UZIMA_BACKEND_URL=https://uzima-backend-704882703182.us-central1.run.app
 ```
 
-Only the callback origin is stored on Vercel. AWS and Twilio credentials remain on the backend. Hosted updates use the existing one-second status poll instead of a WebSocket server.
+Only the backend origin is stored on Vercel. AWS and Twilio credentials are held in Google Secret Manager. Hosted updates use the existing one-second status poll instead of a WebSocket server.
 
-The callback host must match the existing tunnel. If the tunnel URL changes, update the backend’s callback/ticket settings and deploy again with the new origin. Existing in-memory transfers and tickets are lost if their services restart.
+The Cloud Run hostname is also used for Twilio callbacks and ticket/record links. The backend currently keeps transfers and tickets in memory, so a backend restart or deployment clears them.
 
 Vercel’s deployment protection may additionally require the project owner to sign in. Share the preview according to the project’s access settings.
 
@@ -26,5 +26,7 @@ Vercel’s deployment protection may additionally require the project owner to s
 - `make test`
 - `node --test apps/dashboard/tests/relay.test.mjs`
 - Build with the two `VITE_` settings above.
-- Verify the tunnel’s `/dashboard/health` responds without an access code.
+- Verify the cloud backend’s `/dashboard/health` responds without an access code.
 - Deployment readiness is reported by the Vercel CLI. A live phone rehearsal requires the configured demo participants to be ready.
+
+The submitted domain is the production URL. Use `--prod` instead of `--target preview` when updating that submitted site.
