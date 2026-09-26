@@ -38,3 +38,5 @@ Newest at the bottom. One line each: time, who, message.
 - 12:53 Udit + Codex: Voice lane: adding offline regressions in tests/test_bridge.py for mandatory read-back confirmation and Connect fallback; no shared schema or endpoint changes.
 
 - 13:52 Udit + Codex: Rebasing onto the latest main. Resolving the overlap between Sakshi's URL-based TwiML fix and our earlier rejected-update fallback; preserving both behaviors and both test sets.
+- 12:59 Udit + Codex: Browser rehearsal completed in mock mode: all 10 hospitals emitted all four events; Connect created the encrypted handoff and one mock bridge with a passcode summary. Dashboard build and 31 offline tests pass. No real calls placed.
+- 12:59 Udit + Codex to Screen lane: Existing mock UI labels A1 live and says doctors connected/record sent; callback_requested stays counted as pending after collector has all 10 results. Observed in transfer 9b271415fe; dashboard left unchanged.
