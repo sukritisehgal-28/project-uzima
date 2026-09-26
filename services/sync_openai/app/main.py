@@ -13,7 +13,7 @@ from services.shared import config
 app = FastAPI(title="Project Uzima OpenAI gateway")
 MAX_CONCURRENT = int(os.getenv("OPENAI_MAX_CONCURRENT", "5"))
 _slots = asyncio.Semaphore(MAX_CONCURRENT)
-OPENING = "Hi, this is an AI transfer assistant calling for South Sunflower County Hospital. This call is recorded."
+OPENING = "Hi, this is an AI assistant from Project Uzima, calling for a referring doctor at South Sunflower County Hospital. This call is recorded."
 
 
 class CompleteRequest(BaseModel):
