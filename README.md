@@ -79,15 +79,15 @@ sequenceDiagram
 
 ## Team
 
-Three lanes that merge without conflicts (details in [docs/team-plan.md](docs/team-plan.md)):
+Three equal lanes (~6 h of build each plus a third of the pitch) that merge without conflicts; details in [docs/team-plan.md](docs/team-plan.md).
 
 | Lane | Main role | Owns |
 | --- | --- | --- |
-| Engine | The live call and the agents | `services/agent`, `services/sync_twilio`, `services/sync_openai` |
-| Backbone | Orchestration, data, cloud, handoff twin | `services/orchestrator`, `services/collector`, `services/handoff`, `infra`, `data` |
-| Face | Dashboard, pitch, demo | `apps/dashboard`, `docs/deck.md`, backup video |
+| Engine | Voice and agents: live call, simulated hospitals, SMS and physician bridge | `services/agent`, `services/sync_twilio`, `services/sync_openai` |
+| Backbone | Orchestration and cloud: selection, ranking, hold and release, DynamoDB, AWS Location, EKS | `services/orchestrator`, `services/collector`, `infra`, `data` |
+| Face | Experience and handoff: dashboard, handoff twin (IPS + SMART Health Link + insurance), deck | `apps/dashboard`, `services/handoff`, `docs/deck.md` |
 
-Shared contracts live in `services/shared/schemas.py` and the collector endpoints; changing them needs a PR all three approve.
+Shared contracts live in `services/shared/schemas.py` and the service endpoints listed in the team plan; changing them needs a PR all three approve.
 
 ## Rules
 - A1 is a real call to a teammate's phone. Every other agent runs the same code against a simulated responder.

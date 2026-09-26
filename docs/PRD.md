@@ -390,6 +390,16 @@ The headline number is wall-clock time from Start to a held bed with a transport
 
 One real call working end to end by 12:00 on the day is the only hard gate; everything else builds on it. Freeze rule: no new features after 15:30, only fixes.
 
+**Team split: three equal lanes that merge** (full detail in `docs/team-plan.md`)
+
+| Lane | Main role | Owns | Done when |
+| --- | --- | --- | --- |
+| Engine | Voice and agents: live A1 call (Twilio Media Streams + OpenAI Realtime, Retell/Vapi backup), Q1/Q2 and transcript, four events, simulated hospitals with personas, SMS and physician bridge | `services/agent`, `services/sync_twilio`, `services/sync_openai` | A teammate's phone rings, both questions are answered, the events land; A2–An resolve realistically |
+| Backbone | Orchestration and cloud: survival-window selection, ranking, hold and release, collector + DynamoDB, AWS Location road times, EKS with App Runner fallback | `services/orchestrator`, `services/collector`, `infra`, `data` | One button launches the swarm on AWS, ranks with real road times, holds and releases correctly |
+| Face | Experience and handoff: dashboard (map, cards, clocks, recommendation, Accept), handoff twin (IPS bundle, SMART Health Link, Stedi mock insurance), twin panel with QR, deck and backup video | `apps/dashboard`, `services/handoff`, `docs/deck.md` | Judges watch the map fill in, click Accept, and see the twin link and QR appear |
+
+Each lane is about 6 hours of build work plus about a minute of the pitch: Face opens and closes, Engine answers the live call as the hospital, Backbone drives the dashboard and takes the architecture questions. Lanes talk only through frozen contracts (`services/shared/schemas.py`; the collector's `/events`, `/results`, `/stream`; the orchestrator's `/transfers`; sync_twilio's `/call`, `/sms`, `/bridge`; handoff's `/twins`, called by the orchestrator on acceptance). Each lane works on its own branch, touches only its own directories and rebases on `main` at 10:30, 12:00, 13:00, 14:30 and 15:30; a contract change needs a PR all three approve.
+
 **Done (this repo)**
 
 - `data/hospitals.json`: verified centers, graded sources, survival windows, transport tiers, demo cases.
