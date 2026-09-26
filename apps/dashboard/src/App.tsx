@@ -58,7 +58,11 @@ export default function App() {
         last_line: r.error ?? r.transcript?.at(-1)?.text };
       return next;
     });
-    if (s.twin) { setTwin(s.twin); setBridgeMode(s.bridge?.mode); setBridgeStatus(s.bridge?.status); setStoppedAt((at) => at ?? Date.now()); }
+    if (s.twin) {
+      setTwin(s.twin); setBridgeMode(s.bridge?.mode); setBridgeStatus(s.bridge?.status);
+      const restoredAt = Date.now();
+      setStartedAt(restoredAt - s.elapsed_s * 1000); setStoppedAt(restoredAt);
+    }
   }
 
   useEffect(() => {
@@ -154,6 +158,8 @@ export default function App() {
   const acceptedName = accepted?.hospital ?? twin?.hospital;   // a twin only exists once a hospital accepted
   const released = count("released");
   const ticket = twin?.ticket;
+  // Delivery is a presentation-only mock until a receiving-system integration exists.
+  const demoInfoSent = !!twin && (bridgeStatus === "ended" || (bridgeMode === "mock" && bridgeStatus === "simulated"));
 
   return (
     <div className="grid min-h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(340px,1fr)_auto] overflow-x-hidden">
@@ -240,6 +246,29 @@ export default function App() {
                   {bridgeMode === "live" ? (bridgeLabel[bridgeStatus ?? ""] ?? "Doctor connection requested; waiting for the phones to join") : "Simulated connection; no phones dialed"}{ticket ? ", transfer ticket created" : ""}
                   {released ? `, ${released} other ${released === 1 ? "hospital" : "hospitals"} released` : ""}.
                 </div>
+                {twin && (
+                  <section aria-label="Patient information delivery" aria-live="polite"
+                    className={`mt-3 rounded-xl border px-3.5 py-3 ${demoInfoSent ? "border-st-yes/25 bg-st-yes/5" : "border-ink-line bg-ink-panel"}`}>
+                    <div className="flex items-start gap-2.5">
+                      <svg aria-hidden="true" viewBox="0 0 20 20" fill="none"
+                        className={`mt-0.5 h-5 w-5 shrink-0 ${demoInfoSent ? "text-st-yes" : "text-ink-muted"}`}>
+                        {demoInfoSent ? <><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" /><path d="m6 10 2.5 2.5L14 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></>
+                          : <><path d="M5 2.5h6L15 7v10.5H5zM11 2.5V7h4M7.5 10h5M7.5 13h5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></>}
+                      </svg>
+                      <div className="min-w-0">
+                        <h2 className="text-sm font-semibold">{demoInfoSent ? "Patient information sent" : "Patient information ready"}</h2>
+                        <div className="mt-1 inline-flex rounded-full border border-ink-line bg-ink-bg px-2 py-0.5 text-[10px] font-medium text-ink-muted">Demo · simulated delivery</div>
+                        <p className="mt-2 text-xs text-ink-muted">To: <span className="font-medium text-ink-text">{twin.hospital}</span></p>
+                        <p className="mt-1 text-xs leading-relaxed text-ink-muted">Patient summary, vitals, medications, allergies and transfer details.</p>
+                        <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
+                          {demoInfoSent ? "Delivery is simulated for this demo. Open the transfer ticket to access the full record."
+                            : bridgeStatus === "failed" ? "Delivery is paused because the doctor connection failed. The record is available in the transfer ticket."
+                            : "Simulated delivery will be shown after the doctor call ends. The record is available in the transfer ticket."}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+                )}
               </div>
             ) : rec ? (
               <div className="win flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl px-4 py-3">
