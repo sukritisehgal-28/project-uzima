@@ -15,7 +15,7 @@
 - How far the right ICU is, from one rural hospital
 - HEART ATTACK
 - 22 mi
-- Greenville: the only heart-attack receiving hospital in the region. The only ICU reachable by road in time.
+- Greenville: the only heart-attack receiving hospital in the region. The only heart-attack center reachable by road in time.
 - STROKE
 - 83 mi
 - Jackson, by air. No thrombectomy center is reachable by ground inside the window.
