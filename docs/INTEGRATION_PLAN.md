@@ -14,7 +14,7 @@ Show one complete emergency-transfer workflow using fictional patient data: sele
 4. Twilio recognizes speech and reads scripted prompts. OpenAI GPT OSS on AWS Bedrock interprets availability and ready time. Clear literal replies remain usable during a model outage.
 5. The agent reads the complete answer back. Only an unqualified confirmation records availability or decline. Corrections restart collection. Silence or unresolved ambiguity becomes no answer.
 6. The collector receives the transcript, source and result, then updates the dashboard. Ranking uses estimated travel time, ready time and the fixed demo handoff allowance.
-7. Connect creates the handoff record and requests a phone bridge. The receiving doctor hears the summary before Udit is dialed. A failed phone request is shown as an error; the UI never asserts that both participants can hear one another.
+7. Connect creates the handoff record and calls the separate accepting doctor. After that doctor hears the summary, a signed callback dials Udit into a conference; the hospital desk joins too if its original call remains open. A failed phone request is shown as an error; the UI never asserts that both participants can hear one another.
 8. The transfer ticket opens over HTTPS. Its QR opens the encrypted record, with the decryption key held in the link fragment. No passcode is required. The record expires after 24 hours.
 
 ## Work already integrated
@@ -53,10 +53,10 @@ Show one complete emergency-transfer workflow using fictional patient data: sele
 ### Gate 3 — Connect and ticket: Sakshi + Udit + Sukriti
 
 - Keep the confirmed hospital call open. Select that confirmed live result for the live demonstration.
-- Press Connect once. Hospital roleplayer hears the referral summary, Udit's phone rings, and both participants speak and hear each other.
+- Press Connect once. The separate accepting doctor's phone rings and that doctor hears the referral summary. Only then does Udit's phone ring. Both doctors speak and hear each other; the hospital desk joins if its call is still open.
 - Verify the phone actually joined; “connection requested” in the app alone is insufficient evidence.
 - Open the new ticket on a second phone and scan its QR. Confirm the correct fictional patient, selected hospital, transcript and ready time.
-- If the original call ends, verify the fallback calls the receiving doctor first, speaks the summary and then dials Udit.
+- If the original desk call ends, the separate accepting-doctor handoff still works. The legacy two-party fallback is used only when a separate accepting-doctor number is not configured.
 
 ### Gate 4 — packaging and submission: Sukriti, pitch by Udit
 
@@ -91,3 +91,11 @@ Persist calls/tickets/results, add end-to-end call status callbacks and reconcil
 - Twilio speech collection: https://www.twilio.com/docs/voice/twiml/gather
 - Twilio signed webhook validation: https://www.twilio.com/docs/usage/security
 - Temporary HTTPS tunnels: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/
+
+## Verification recorded at 2:50 PM PT
+
+- 76 automated tests pass; dashboard production build passes.
+- Live Bedrock interpretation correctly extracted yes, ten minutes and no from three spoken-answer examples in under a second each.
+- Authorized hospital call produced a confirmed live availability result with ready time 10 minutes, visible on the dashboard.
+- First bridge connected the sending doctor to the hospital desk, confirmed by Udit. Udit clarified that the accepting doctor must be called separately; this is now implemented and a corrected live handoff is being checked.
+- Public HTTPS ticket and manifest both returned 200, and the encrypted record decrypted successfully. Restarting the services invalidates prior in-memory tickets; create a new ticket for the final recording.

@@ -2,7 +2,7 @@
 
 **The beds exist. We get people to them in time.**
 
-Uzima helps a referring clinician find a receiving hospital. Parallel agents ask about the required capability and bed, collect a ready time, read the answer back, and wait for explicit confirmation. The dashboard ranks confirmed answers by estimated time to treatment. Connect reads the referral summary to the receiving doctor, then dials the referring clinician. The transfer ticket links to an encrypted patient handoff record.
+Uzima helps a referring clinician find a receiving hospital. Parallel agents ask about the required capability and bed, collect a ready time, read the answer back, and wait for explicit confirmation. The dashboard ranks confirmed answers by estimated time to treatment. Connect calls the separate accepting doctor, reads the referral summary, then dials the referring clinician into a conference. The original hospital desk joins too if still on the line. The transfer ticket links to an encrypted patient handoff record.
 
 This is a hackathon prototype using fictional patients and teammate phones. Receiving hospitals only need to answer a phone. The ticket is an optional record for the receiving team.
 
@@ -65,7 +65,7 @@ The public gateway excludes call creation, doctor connection, transfer creation 
 - A failed live call yields a live error/no-answer result, never synthetic availability.
 - Voice answers are read back and require an unqualified confirmation. Corrections restart fact collection. Duplicate callbacks do not create another result.
 - Connect checks both handoff and phone-service responses. A failed request remains retryable; concurrent/repeated successful requests return the existing result.
-- Both the existing-call and fallback-call paths read the summary to the receiving doctor before dialing the referring clinician.
+- The accepting doctor is dialed first. A signed callback after the spoken summary starts the referring-doctor call; duplicate callbacks cannot dial twice. Legacy two-party bridges remain available when no accepting-doctor number is configured.
 - Search timeout accommodates the live-call timeout. Results identify whether they are live or simulated.
 - Tests cover the offline end-to-end transfer, encrypted record, voice state machine, correction/confirmation, callback signatures, bridge failure/retry and public endpoint restrictions.
 

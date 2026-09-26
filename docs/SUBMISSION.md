@@ -37,12 +37,12 @@ flowchart LR
 ```
 
 1. **The clinician asks.** On one screen, the referring clinician picks the emergency (for example, heart attack) and how fast care is needed with a "Care within" slider, then presses Find a bed. That's the only thing they have to learn.
-2. **Uzima picks the hospitals.** It finds every hospital that can treat that emergency and can be reached inside the window by road or air. In the demo, the sending hospital is South Sunflower County Hospital in rural Mississippi, and the network is 15 real receiving centers across Mississippi, Tennessee and Arkansas, with capabilities from public sources.
-3. **One agent per hospital, all at once.** Uzima starts a separate AI agent for each hospital and they all call at the same time. Three real, verified team phones take part: the receiving hospital's reception desk, which the agent calls, the accepting doctor and the sending doctor. The other hospitals are simulated with realistic answers, labeled SIM on screen.
+2. **Uzima picks the hospitals.** It finds every hospital that can treat that emergency and can be reached inside the window by road or air. In the demo, the sending hospital is South Sunflower County Hospital in rural Mississippi, and the network is 18 real receiving centers across Mississippi, Tennessee and Arkansas, with capabilities from public sources.
+3. **One agent per hospital, all at once.** Uzima starts a separate AI agent for each hospital and they all call at the same time. Three real, verified team phones take part: the receiving hospital's reception desk, which the agent calls, the accepting doctor and the sending doctor. The other hospitals are simulated with realistic answers, identified as simulated in the recommendation.
 4. **The call.** Each agent says it's an AI assistant in its first line, gives the case in one breath, asks if they can take the patient and how soon, then reads the answer back ("So that's yes, ready in 10 minutes. Is that right?"). An answer only counts after the person on the phone confirms it. The hospital just talks. No app, link or login.
 5. **The live map.** As answers arrive, each hospital on the map turns green (yes, ready in N minutes), coral (no, with the reason) or grey (no answer). A clock shows Uzima's time next to how long calling one by one would take.
-6. **The decision.** Plain code, not the AI, ranks the confirmed yeses by time to treatment: the longer of travel time and ready time, plus handoff. The top hospital is recommended with its reasons, and the next two are held as standby.
-7. **Connect doctors.** The clinician presses one button. The agent, still on the line with the winning hospital's reception desk, reads a short summary, then the accepting doctor and the sending doctor are brought onto the call. Doctor to doctor, in one tap. Once the transfer ticket is created, the agent's calls are finished and the other hospitals are released.
+6. **The decision.** Plain code, not the AI, ranks the confirmed yeses by time to treatment: the longer of travel time and ready time, plus handoff. The top hospital is recommended with its reasons, and the clinician chooses the receiving hospital.
+7. **Connect doctors.** The clinician presses one button. The separate accepting doctor is called and hears a short summary. After the summary, the sending doctor is dialed into the same conference. The hospital desk also joins if its original call is still open. Doctor to doctor, in one tap. Once the transfer ticket is created, the agent's calls are finished and the other hospitals are released.
 8. **The record.** Uzima also builds the patient record in the international patient summary standard (HL7 FHIR IPS), encrypted as a SMART Health Link that expires after 24 hours, plus a mock insurance check. It carries what US transfer rules (EMTALA) ask to travel with the patient: vital signs, treatment given, test results, allergies, the doctor's certification and consent, and every call. It comes with a transfer ticket, like a boarding pass: the dashboard shows "Ticket created", and on arrival the receiving team scans the ticket's QR code, which opens the record on the hospital's computer. The handoff still works by voice alone.
 
 ```mermaid
@@ -54,22 +54,22 @@ flowchart LR
   D --> E
 ```
 
-**How it's built.** Five small Python (FastAPI) services and a React map dashboard: an orchestrator that selects hospitals and ranks answers, a voice gateway that connects Twilio phone calls to OpenAI's realtime voice model, a collector that streams every call event live to the dashboard, and a handoff service for the encrypted record and transfer ticket. Simulated hospital conversations are generated live by OpenAI's GPT OSS model running on AWS Bedrock. Each agent is stateless and works the same whether its call is live or simulated, so adding hospitals means starting more agents, not changing code. The same agent image can run as a Kubernetes Job per hospital, and we can store call events in Amazon DynamoDB and get road times from Amazon Location on AWS. Everything also runs in a mock mode with no keys, so anyone can try it.
+**How it's built.** Six small Python (FastAPI) services, including a restricted public callback gateway, and a React map dashboard: an orchestrator that selects hospitals and ranks answers, a voice gateway that uses Twilio speech recognition and speech synthesis, with OpenAI GPT OSS on AWS Bedrock interpreting the hospital's responses, a collector that streams every call event live to the dashboard, and a handoff service for the encrypted record and transfer ticket. Simulated hospital conversations are generated live by OpenAI's GPT OSS model running on AWS Bedrock. Each agent is stateless and works the same whether its call is live or simulated, so adding hospitals means starting more agents, not changing code. The same agent image can run as a Kubernetes Job per hospital, and we can store call events in Amazon DynamoDB and get road times from Amazon Location on AWS. Everything also runs in a mock mode with no keys, so anyone can try it.
 
 ```mermaid
 flowchart LR
   UI["Dashboard<br/>(React + live map)"] --> ORC["Orchestrator<br/>selects and ranks"]
   ORC --> AG["Agents<br/>(one per hospital)"]
-  AG --> VO["Voice gateway<br/>Twilio + OpenAI realtime"]
+  AG --> VO["Voice gateway<br/>Twilio speech + Bedrock"]
   AG --> TX["Text gateway<br/>AWS Bedrock"]
   AG --> COL["Collector<br/>live call events"]
   COL --> UI
   ORC --> HO["Handoff service<br/>record + ticket"]
 ```
 
-**How we tested it.** 15 automated tests cover hospital selection inside the window, ranking, the accept flow, the voice gateway's answer handling and the Connect handoff, and they all pass. We ran [N] full rehearsals with [N] live phones ringing at once; on the live calls the agent's read-back matched what the person said [N of N] times, and Uzima reached a confirmed bed in about [N] seconds versus an estimated [N] minutes calling one by one. [Replace each bracket with what you actually measured, or remove the sentence.]
+**How we tested it.** 76 automated tests cover hospital selection inside the window, ranking, the accept flow, the voice gateway's answer handling and the Connect handoff, and they all pass. A live hospital roleplay call returned a confirmed yes with a ten-minute ready time, and the live result reached the dashboard. The first doctor bridge connected the sending doctor to the hospital desk. We then added the separately dialed accepting doctor and are verifying that corrected conference. Public ticket access, encrypted record decryption and actual Bedrock inference pass. Final two-way audio confirmation and video link must be recorded before submission.
 
-**What's real and what's not.** Real: the time-window selection, one agent per hospital running in parallel, live phone calls with AI disclosure and read-back, the ranking, Connect on the live call, the encrypted record and the transfer ticket. Simulated or mocked: the other hospitals' answers (labeled SIM), the patient (fictional), and the insurance check (a sandbox). We never call real hospital numbers. Today the agents run as parallel tasks in one process; per-agent isolation on Kubernetes or AWS Bedrock AgentCore is built as a template but not running today.
+**What's real and what's not.** Real: the time-window selection, one agent per hospital running in parallel, live phone calls with AI disclosure and read-back, the ranking, Connect on the live call, the encrypted record and the transfer ticket. Simulated or mocked: the other hospitals' answers (identified as simulated), the patient (fictional), and the insurance check (a sandbox). We never call real hospital numbers. Today the agents run as parallel tasks in one process; a Kubernetes Job launcher/template exists but is not running; AgentCore is a future option. DynamoDB and AWS Location are disabled because workshop permissions deny the required checks, so storage is in memory and road times are estimated.
 
 ## 5. What's the path to real-world impact?
 
@@ -89,7 +89,7 @@ flowchart LR
 
 **Risks and how we handle them.**
 
-- Hospitals may not trust an AI caller. We disclose it up front, keep calls under a minute, and the clinician joins the call before anything is committed.
+- Hospitals may not trust an AI caller. We disclose it up front, keep the questions short, and the clinician joins the call before anything is committed.
 - The AI could mishear. Every answer is read back and confirmed, unclear answers are asked once more and then marked unclear, and nothing counts without a confirmation.
 - People could over-trust the recommendation. The ranking is plain, explainable code, and a clinician confirms every transfer.
 - Regulatory scope. Uzima coordinates logistics and never gives clinical advice; we'd confirm that scope with counsel and clinical partners before a pilot.
@@ -109,7 +109,7 @@ flowchart LR
 | --- | --- |
 | Problem significance and impact | Q3: sourced numbers on transfer delays in the US and deaths from poor-quality care worldwide; a clear user (the clinician at a small hospital) and a clear cost (minutes lost to phone tag). |
 | Innovation and use of AI | Q4: many voice agents calling in parallel, read-back confirmation before an answer counts, AI coordinates while plain code and a human decide. Hospitals need no technology at all. |
-| Technical execution | Q4: five services, live phone calls bridged to realtime voice AI, live event stream to the map, standards-based encrypted record, automated tests, honest line between real and simulated. |
+| Technical execution | Q4: six services, live phone calls with Twilio speech and Bedrock interpretation, live event stream to the map, standards-based encrypted record, automated tests, honest line between real and simulated. |
 | Real-world viability | Q5: named users and buyers, a flat per-hospital price, a four-week shadow pilot with metrics, HIPAA, EMTALA and TCPA addressed, risks with mitigations. |
 | Strength of demonstration | Demo: the reception desk's real phone rings while simulated hospitals answer on the map, the answer is read back, one tap brings the accepting and sending doctors onto the call, and the transfer ticket appears. The written answers match exactly what we show. |
 
