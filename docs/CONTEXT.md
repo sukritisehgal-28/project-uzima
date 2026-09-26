@@ -86,8 +86,3 @@ See `docs/demo-script.md`. Heart attack case, default window (10 hospitals), 3 r
 - "Is it isolated?" Today every agent is its own async task in one process; the Kubernetes Job launcher exists (`LAUNCH_MODE=k8s`) and AgentCore is the production plan. Be honest.
 - "Privacy?" Hospitals hear only the need until they accept; the record is encrypted with a passcode and 24 h expiry; fictional patients only.
 - "What's simulated?" Other hospitals' answers, labeled on screen. Everything else is real.
-
-## Links (private, share on request)
-
-- Pitch deck: https://claude.ai/artifact/XeFaqmCXVmenZScrV26DSg
-- PRD and design doc (the target design; it still mentions Telnyx, SQLite and AgentCore, which the code does not use today): https://claude.ai/code/artifact/29b32c4b-d8e4-4014-815b-738da83cd28e

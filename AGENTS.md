@@ -1,4 +1,4 @@
-# AGENTS.md: handoff for coding agents (Codex)
+# AGENTS.md: handoff for coding agents
 
 Read this first. It's the current state of Project Uzima as of 12:30 PM PT, Sat Sep 26, 2026.
 **Hard deadline: submission at 3:00 PM PT. Code freeze at 2:15 PM.** Anything not working by then gets cut, not fixed.
@@ -80,7 +80,7 @@ make smoke       # with make dev running: start, wait, accept, print twin link
 
 ## How we coordinate (humans and LLMs, via GitHub)
 
-Every agent (Codex, Claude Code, Cursor, Gemini, Copilot) and every person follows this loop on every change:
+Every coding agent and every person follows this loop on every change:
 
 1. `git pull --rebase origin main` before touching anything.
 2. Read `AGENTS.md` (rules, rarely changes) and `STATUS.md` (live board).
