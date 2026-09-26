@@ -1,0 +1,7 @@
+{
+  "TableName": "marco-polo",
+  "AttributeDefinitions": [{ "AttributeName": "pk", "AttributeType": "S" }, { "AttributeName": "sk", "AttributeType": "S" }],
+  "KeySchema": [{ "AttributeName": "pk", "KeyType": "HASH" }, { "AttributeName": "sk", "KeyType": "RANGE" }],
+  "BillingMode": "PAY_PER_REQUEST",
+  "_items": "pk=TRANSFER#<id> sk=EVENT#<ts>#<agent> (EMTALA log) · pk=MEMORY sk=<hospital_id> with ttl 30 min (bed memory) · pk=TWIN#<id> (encrypted handoff twin)"
+}
