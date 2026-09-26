@@ -155,7 +155,8 @@ async def accept(tid: str, req: AcceptRequest):
                                       "clinician": config.env("DEMO_SENDING_DOCTOR_PHONE", "[referring clinician]"),
                                       "fallback_hospital": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
     await _tevent(tid, "accepted", chosen["hospital_id"], accepting_physician=req.accepting_physician)
-    t["twin"] = {"shlink": twin["shlink"], "passcode": twin["passcode"], "hospital": chosen["hospital"], "insurance": twin.get("insurance")}
+    t["twin"] = {"shlink": twin["shlink"], "passcode": twin["passcode"], "hospital": chosen["hospital"], "insurance": twin.get("insurance"),
+                 "ticket": twin.get("ticket")}
     await _tevent(tid, "twin_ready", chosen["hospital_id"], **t["twin"])
     return {"accepted": chosen["hospital"], "treatment_start_min": chosen["treatment_start_min"], "twin": t["twin"]}
 

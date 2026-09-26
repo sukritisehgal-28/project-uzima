@@ -4,15 +4,16 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { MAP_STYLE, type Card } from "./api";
 
 // Status colors always come with a word (on the pin label and in the legend).
-export const STATUS: Record<string, { color: string; label: string }> = {
-  calling: { color: "#D9A441", label: "Calling" },
-  callback_requested: { color: "#D9A441", label: "Call back in 5 min" },
-  available: { color: "#3FB67A", label: "Available" },
-  declined: { color: "#D65A55", label: "Declined" },
-  no_answer: { color: "#6B7280", label: "No answer" },
-  held: { color: "#3FB67A", label: "Held" },
-  accepted: { color: "#3FB67A", label: "Accepted" },
-  released: { color: "#4B5563", label: "Released" },
+// color = dot / swatch fill, text = the same status as text on white (darker, for contrast), line = the line from the ER.
+export const STATUS: Record<string, { color: string; text: string; line: string; label: string }> = {
+  calling: { color: "#F2B35B", text: "#A86A06", line: "#F2B35B", label: "Calling" },
+  callback_requested: { color: "#F2B35B", text: "#A86A06", line: "#F2B35B", label: "Call back in 5 min" },
+  available: { color: "#5BD18B", text: "#1E8A4C", line: "#5BD18B", label: "Available" },
+  declined: { color: "#EE7B6B", text: "#C2412F", line: "#EE7B6B", label: "Declined" },
+  no_answer: { color: "#A3A6AD", text: "#6B6F77", line: "#C9CBD0", label: "No answer" },
+  held: { color: "#5BD18B", text: "#1E8A4C", line: "#1E8A4C", label: "Held" },
+  accepted: { color: "#5BD18B", text: "#1E8A4C", line: "#1E8A4C", label: "Accepted" },
+  released: { color: "#C9CBD0", text: "#6B6F77", line: "#C9CBD0", label: "Released" },
 };
 const PRIORITY: Record<string, number> = { accepted: 0, held: 0, available: 1, callback_requested: 2, declined: 3, calling: 4, no_answer: 5, released: 6 };
 const LEGEND = ["calling", "available", "declined", "no_answer", "released", "accepted"];
@@ -60,9 +61,11 @@ function markerEl(c: Card, name: string): { root: HTMLElement; label: HTMLElemen
   label.className = "mp-label mp-top";
   label.style.borderLeftColor = s.color;
   const t = document.createElement("div"); t.className = "t";
-  const id = document.createElement("span"); id.className = "id"; id.textContent = `${c.agent_id}${c.live ? " live" : ""}`;
-  t.append(id, document.createTextNode(name));
-  const st = document.createElement("div"); st.className = "s"; st.style.color = s.color; st.textContent = statusLine(c);
+  const id = document.createElement("span"); id.className = "id"; id.textContent = c.agent_id;
+  t.append(id);
+  if (c.live) { const tag = document.createElement("span"); tag.className = "live"; tag.textContent = "live"; t.append(tag); }
+  t.append(document.createTextNode(name));
+  const st = document.createElement("div"); st.className = "s"; st.style.color = s.text; st.textContent = statusLine(c);
   label.append(t, st);
   root.append(dot, label);
   return { root, label };
@@ -74,6 +77,7 @@ const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && b.x < a.x + a.w && a.y <
 export default function MapView({ sending, cards, names, focusKey, searching }:
   { sending?: Sending; cards: Card[]; names: Record<string, string>; focusKey?: string; searching: boolean }) {
   const el = useRef<HTMLDivElement>(null);
+  const legend = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
   const placed = useRef<{ card: Card; p: Placement; marker: maplibregl.Marker; label: HTMLElement }[]>([]);
@@ -89,7 +93,7 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
       const base = m.project([card.lng, card.lat]);
       const at = m.unproject([base.x + p.dx, base.y + p.dy]);
       marker.setLngLat(at);
-      return { type: "Feature" as const, properties: { status: card.status, color: (STATUS[card.status] ?? STATUS.no_answer).color },
+      return { type: "Feature" as const, properties: { status: card.status, color: (STATUS[card.status] ?? STATUS.no_answer).line },
         geometry: { type: "LineString" as const, coordinates: [[s.lng, s.lat], [at.lng, at.lat]] } };
     });
     (m.getSource("links") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features });
@@ -103,7 +107,9 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
     if (!m || !s) return;
     const { clientWidth: W, clientHeight: H } = m.getContainer();
     const er = m.project([s.lng, s.lat]);
-    const taken: Box[] = [{ x: er.x - 16, y: er.y - 16, w: 32, h: 32 }, { x: 0, y: H - 44, w: 640, h: 44 }, { x: 0, y: 0, w: 290, h: 64 }];
+    const lg = legend.current;
+    const legendBox = lg ? { x: 0, y: lg.offsetTop - 6, w: lg.offsetLeft + lg.offsetWidth + 6, h: H - lg.offsetTop + 6 } : { x: 0, y: H - 44, w: 640, h: 44 };
+    const taken: Box[] = [{ x: er.x - 16, y: er.y - 16, w: 32, h: 32 }, legendBox, { x: 0, y: 0, w: 290, h: 64 }];
     const pts = placed.current.map((e) => m.project(e.marker.getLngLat()));
     pts.forEach((pt) => taken.push({ x: pt.x - 13, y: pt.y - 13, w: 26, h: 26 }));
     const order = placed.current.map((e, i) => ({ e, pt: pts[i] }))
@@ -131,10 +137,11 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
     m.on("load", () => {
       m.addSource("links", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       m.addLayer({ id: "links-done", type: "line", source: "links", filter: ["!", ["in", ["get", "status"], ["literal", ["calling", "callback_requested"]]]],
+        layout: { "line-cap": "round" },
         paint: { "line-color": ["get", "color"], "line-width": ["case", ["==", ["get", "status"], "accepted"], 3, 1.5],
-                 "line-opacity": ["case", ["==", ["get", "status"], "accepted"], 1, ["in", ["get", "status"], ["literal", ["released", "no_answer"]]], 0.3, 0.6] } });
+                 "line-opacity": ["case", ["==", ["get", "status"], "accepted"], 1, ["in", ["get", "status"], ["literal", ["released", "no_answer"]]], 0.9, 0.85] } });
       m.addLayer({ id: "links-calling", type: "line", source: "links", filter: ["in", ["get", "status"], ["literal", ["calling", "callback_requested"]]],
-        paint: { "line-color": ["get", "color"], "line-width": 1.2, "line-dasharray": [3, 3], "line-opacity": 0.55 } });
+        paint: { "line-color": ["get", "color"], "line-width": 1.5, "line-dasharray": [3, 3], "line-opacity": 0.9 } });
       ready.current = true;
       m.fire("mp:ready");
     });
@@ -193,8 +200,8 @@ export default function MapView({ sending, cards, names, focusKey, searching }:
   return (
     <div className="relative h-full w-full">
       <div ref={el} className="h-full w-full" />
-      <div className="absolute bottom-3 left-3 flex max-w-[calc(100%-7rem)] flex-wrap items-center gap-x-4 gap-y-1 rounded border border-ink-line bg-ink-panel px-3 py-1.5 text-[11px] text-ink-muted">
-        <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-brand" />Sending ER</span>
+      <div ref={legend} className="absolute bottom-3 left-3 flex max-w-[calc(100%-7rem)] flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-ink-line bg-ink-panel px-3 py-1.5 text-[11px] text-ink-muted shadow-xs">
+        <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="inline-block h-2.5 w-2.5 rounded-[3px] bg-ink-text" />Sending ER</span>
         {LEGEND.map((k) => (
           <span key={k} className="flex items-center gap-1.5 whitespace-nowrap">
             <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: STATUS[k].color }} />{STATUS[k].label}

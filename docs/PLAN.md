@@ -33,12 +33,14 @@ What changed from v2 because of this rule:
 - Read the wallet in: if the patient has a Kill the Clipboard QR code, the sending ER scans it, and their medications and allergies fill the record.
 - Open it like a wallet pass: the receiving team unlocks the record with the passcode spoken on the call, ideally in a Kill the Clipboard reader they already have (CMS says community-hosted readers exist today). Test this first: those readers expect the US Core format, and our record follows IPS.
 
-Where v3 leaves it today:
+What's built (Sukriti):
 
-- On Connect the orchestrator builds the record: an HL7 IPS patient summary (patient, condition and onset, medications, allergies, problem list), a Transfer section (every call with its answer, reason and transcript; ground vs air rationale) and a Coverage resource from the insurance check (Stedi mock), encrypted as a SMART Health Link (AES-256-GCM, passcode, 24 h expiry).
-- Nothing sends it. The agent reads age, sex, condition, arrival mode and minutes, the insurance payer and the record passcode on the winning call. The link itself goes nowhere, and `tests/test_e2e.py` fails if a text is sent.
-- The link can't be opened yet: the viewer is a placeholder (`SHL_VIEWER_URL`), and the record is served from `localhost:8004` and kept only in memory.
-- If a simulated hospital wins, the fallback call doesn't read the summary.
+- On Connect the orchestrator builds the record: an HL7 IPS patient summary (patient, condition and onset, medications, allergies, problem list), a Transfer section (every call with its answer, reason and transcript; ground vs air rationale) and a Coverage resource from the insurance check (Stedi mock), encrypted as a SMART Health Link (AES-256-GCM, passcode, 24 h expiry). The agent reads the passcode on the winning call.
+- Transfer ticket: a boarding-pass style ticket (`/tickets/{id}`) with the route, patient, condition, transport, arrival time, team-ready time, insurance and a QR code of the record link. It never shows the passcode. The dashboard shows "Ticket created" with a QR code that opens the ticket on a phone.
+- Apple Wallet: `/tickets/{id}.pkpass` builds and signs the pass. Apple only installs passes signed with a Pass Type ID certificate from an Apple Developer account, so it switches on when `APPLE_PASS_TYPE_ID`, `APPLE_TEAM_ID`, `APPLE_PASS_P12` and `APPLE_WWDR_CERT` are set. Until then the web ticket is the ticket.
+- Record viewer: `/view` asks for the passcode, fetches the encrypted file and decrypts it in the browser; the key stays in the link. Ten wrong passcodes lock the link (SMART Health Links rule).
+- For phones, run an https tunnel to port 8004 and set `HANDOFF_PUBLIC_URL` to it (browsers only decrypt on https or localhost). Records and tickets are kept in memory, so a restart clears them.
+- Still open: if a simulated hospital wins, the fallback call doesn't read the summary.
 
 Still to decide, mainly how the link reaches the receiving team (some of these bend the core rule above):
 
