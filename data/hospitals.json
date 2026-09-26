@@ -41,7 +41,8 @@
       "source": "https://censusreporter.org/profiles/05000US28133-sunflower-county-ms/ (ACS 2024 5-year)",
       "state_poverty_rate_pct_2024": 17.8,
       "state_source": "https://usafacts.org/answers/what-is-the-us-poverty-rate/state/mississippi/"
-    }
+    },
+    "short_name": "South Sunflower, Indianola"
   },
   "context_only": [
     {
@@ -126,7 +127,8 @@
       "straight_line_miles": 22,
       "est_road_miles": 27,
       "est_ground_min": 42,
-      "est_air_min": 45
+      "est_air_min": 45,
+      "short_name": "Delta Health, Greenville"
     },
     {
       "id": "ummc",
@@ -178,7 +180,8 @@
       "straight_line_miles": 83,
       "est_road_miles": 99,
       "est_ground_min": 129,
-      "est_air_min": 73
+      "est_air_min": 73,
+      "short_name": "UMMC, Jackson"
     },
     {
       "id": "st_dominic",
@@ -209,7 +212,8 @@
       "straight_line_miles": 83,
       "est_road_miles": 99,
       "est_ground_min": 129,
-      "est_air_min": 73
+      "est_air_min": 73,
+      "short_name": "St. Dominic, Jackson"
     },
     {
       "id": "ms_baptist",
@@ -240,7 +244,8 @@
       "straight_line_miles": 84,
       "est_road_miles": 100,
       "est_ground_min": 130,
-      "est_air_min": 74
+      "est_air_min": 74,
+      "short_name": "MS Baptist, Jackson"
     },
     {
       "id": "merit_central",
@@ -271,7 +276,8 @@
       "straight_line_miles": 84,
       "est_road_miles": 101,
       "est_ground_min": 131,
-      "est_air_min": 74
+      "est_air_min": 74,
+      "short_name": "Merit Central, Jackson"
     },
     {
       "id": "baptist_oxford",
@@ -302,7 +308,8 @@
       "straight_line_miles": 89,
       "est_road_miles": 107,
       "est_ground_min": 138,
-      "est_air_min": 76
+      "est_air_min": 76,
+      "short_name": "Baptist N. Miss., Oxford"
     },
     {
       "id": "methodist_university",
@@ -333,7 +340,8 @@
       "straight_line_miles": 121,
       "est_road_miles": 146,
       "est_ground_min": 185,
-      "est_air_min": 91
+      "est_air_min": 91,
+      "short_name": "Methodist Univ., Memphis"
     },
     {
       "id": "regional_one",
@@ -364,7 +372,8 @@
       "straight_line_miles": 122,
       "est_road_miles": 146,
       "est_ground_min": 185,
-      "est_air_min": 91
+      "est_air_min": 91,
+      "short_name": "Regional One, Memphis"
     },
     {
       "id": "le_bonheur",
@@ -388,7 +397,8 @@
       "straight_line_miles": 122,
       "est_road_miles": 146,
       "est_ground_min": 185,
-      "est_air_min": 91
+      "est_air_min": 91,
+      "short_name": "Le Bonheur, Memphis"
     },
     {
       "id": "nmmc_tupelo",
@@ -433,7 +443,8 @@
       "straight_line_miles": 123,
       "est_road_miles": 148,
       "est_ground_min": 188,
-      "est_air_min": 92
+      "est_air_min": 92,
+      "short_name": "NMMC, Tupelo"
     },
     {
       "id": "baptist_memphis",
@@ -464,7 +475,8 @@
       "straight_line_miles": 124,
       "est_road_miles": 149,
       "est_ground_min": 188,
-      "est_air_min": 92
+      "est_air_min": 92,
+      "short_name": "Baptist, Memphis"
     },
     {
       "id": "arkansas_childrens",
@@ -495,7 +507,8 @@
       "straight_line_miles": 129,
       "est_road_miles": 155,
       "est_ground_min": 196,
-      "est_air_min": 95
+      "est_air_min": 95,
+      "short_name": "Arkansas Children's, Little Rock"
     },
     {
       "id": "uams",
@@ -533,7 +546,8 @@
       "straight_line_miles": 131,
       "est_road_miles": 157,
       "est_ground_min": 198,
-      "est_air_min": 95
+      "est_air_min": 95,
+      "short_name": "UAMS, Little Rock"
     },
     {
       "id": "chi_st_vincent",
@@ -557,7 +571,8 @@
       "straight_line_miles": 132,
       "est_road_miles": 158,
       "est_ground_min": 200,
-      "est_air_min": 96
+      "est_air_min": 96,
+      "short_name": "St. Vincent, Little Rock"
     },
     {
       "id": "baptist_little_rock",
@@ -595,7 +610,8 @@
       "straight_line_miles": 133,
       "est_road_miles": 160,
       "est_ground_min": 202,
-      "est_air_min": 96
+      "est_air_min": 96,
+      "short_name": "Baptist, Little Rock"
     }
   ],
   "demo_cases": {

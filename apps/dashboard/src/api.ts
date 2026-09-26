@@ -1,6 +1,7 @@
 export const ORCH = import.meta.env.VITE_ORCHESTRATOR_URL ?? "http://localhost:8000";
 export const WS = import.meta.env.VITE_COLLECTOR_WS ?? "ws://localhost:8003/stream";
-export const MAP_STYLE = import.meta.env.VITE_MAP_STYLE ?? "https://demotiles.maplibre.org/style.json";
+// CARTO Dark Matter (free, no key): state borders and city names. Set VITE_MAP_STYLE to the AWS Location style URL when USE_AWS=1.
+export const MAP_STYLE = import.meta.env.VITE_MAP_STYLE ?? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 export type Transport = { est_ground_min: number; est_air_min: number; recommended_mode: "ground" | "air"; tier: string };
 export type Agent = { agent_id: string; hospital_id: string; hospital: string; lat: number; lng: number; live: boolean; transport: Transport };
