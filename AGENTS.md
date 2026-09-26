@@ -3,6 +3,18 @@
 Read this first. It's the current state of Project Uzima as of 12:30 PM PT, Sat Sep 26, 2026.
 **Hard deadline: submission at 3:00 PM PT. Code freeze at 2:15 PM.** Anything not working by then gets cut, not fixed.
 
+## Final integration update (14:40 PT)
+
+Udit explicitly authorized urgent integration fixes after the freeze. `docs/INTEGRATION_PLAN.md` and the current README describe the release; older details below are historical.
+
+- Default voice is `VOICE_PROVIDER=bedrock_gather`: Twilio speech recognition/synthesis, OpenAI GPT OSS interpretation through AWS Bedrock, scripted read-back and strict confirmation. Direct Realtime is a legacy opt-in only.
+- `TWILIO_ENABLED=0` is an explicit simulation switch even when credentials exist. Set it to 1 for an authorized phone rehearsal. Use one worker for the voice service.
+- The public gateway on port 8005 exposes only TwiML, signed voice callbacks and handoff links. A temporary HTTPS tunnel can serve both voice and records. Never expose the internal `/call` or `/bridge` endpoints.
+- Every result carries `source` (`live` or `simulated`) and optional `error`. Accept/status responses add bridge mode/status; successful connection requests are not proof of two-way audio.
+- The supplied Twilio account was checked as Full; old trial-account assumptions below do not describe the current account.
+- Main now has 18 receiving centers and a white dashboard. The record passcode was removed by the team; possession of the ticket/record link grants access until expiry.
+- `make preflight` checks real Bedrock inference and HTTPS without dialing. `make smoke` refuses to dial unless invoked with `--live`.
+
 ## What we're building
 
 Project Uzima: "The beds exist. We get people to them in time."

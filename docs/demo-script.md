@@ -1,14 +1,15 @@
-# Demo script (about 3 minutes)
+# Final demo script (about two minutes)
 
-| Time | Who | On screen | Say |
-| --- | --- | --- | --- |
-| 0:00 | Udit | Slides 1 to 3 | The beds exist. No one can answer: who can take this patient, right now? |
-| 0:45 | Udit | Slide 4, switch to the dashboard | Let me show you. |
-| 0:50 | Udit | Pick Heart attack, leave "Care within" on the default, press Find a bed | Ten hospitals can treat this in time. Ten agents, all at once. |
-| 1:00 | Sakshi, Sukriti, judge | Three phones ring | Three of these are real phones. You're a hospital. Just talk, there's nothing to open. |
-| 1:40 | Udit | Cards turn yes, no, no answer; ranking appears | Every answer is read back before it counts. Plain rules rank by time to treatment. |
-| 2:10 | Udit | Press Connect doctors | The agent reads the summary to the winning hospital, then dials me into that call. |
-| 2:30 | Udit | Timer vs one-at-a-time estimate | Calling one by one would still be on call three. |
-| 2:40 | Udit | Slide 5, then slide 6 | Here's how it works under the hood. The beds exist. We get people to them in time. |
+Use fictional patients and consenting teammate phones. One real hospital roleplay call is enough; identify all other answers as simulated. Have a backup recording ready.
 
-Before every run: Twilio trial message heard once, all phones on loud, `SIM_TIME_SCALE=1`, backup video open in a tab.
+| Time | Owner | Action and narration |
+| --- | --- | --- |
+| 0:00 | Udit | “Finding a capable hospital still takes repeated phone calls. Uzima asks in parallel and confirms each answer.” |
+| 0:15 | Udit | Choose Heart attack, leave the default window, press Find a bed. State how many calls in this run are real. |
+| 0:25 | Sakshi | Answer the hospital demo phone on speaker. Let the AI introduce itself and ask about the bed and cath lab. Reply “yes”, “ten minutes”, then confirm its read-back. |
+| 0:55 | Udit | Show the confirmed result. Explain that ranking combines the ready time and estimated transport time. Select the confirmed live hospital for the live handoff. |
+| 1:10 | Udit | Press Connect. Let the hospital hear the summary, answer the clinician phone and exchange one sentence in each direction. |
+| 1:35 | Sukriti | Show the transfer ticket and open the encrypted record on a phone. The ticket link replaces the old passcode step. |
+| 1:50 | Udit | “OpenAI runs through AWS Bedrock. Twilio handles speech and telephone calls. The prototype uses local agents and estimated transport times.” |
+
+Before recording: `make preflight`; participants ready; live calling explicitly enabled; tunnel and services running; phones audible. Do not claim a live connection until both parties can hear each other. If live audio is not verified, label the demonstration as simulated.

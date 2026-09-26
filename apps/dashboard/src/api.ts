@@ -5,7 +5,7 @@ export const MAP_STYLE = import.meta.env.VITE_MAP_STYLE ?? "https://basemaps.car
 
 export type Transport = { est_ground_min: number; est_air_min: number; recommended_mode: "ground" | "air"; tier: string };
 export type Agent = { agent_id: string; hospital_id: string; hospital: string; lat: number; lng: number; live: boolean; transport: Transport };
-export type Card = Agent & { status: string; ready_in_min?: number | null; decline_reason?: string | null; treatment_start_min?: number | null; last_line?: string };
+export type Card = Agent & { status: string; ready_in_min?: number | null; decline_reason?: string | null; treatment_start_min?: number | null; last_line?: string; source?: "live" | "simulated"; error?: string };
 /** Transfer ticket created on Connect: the patient's pass for the transfer (web page + optional Apple Wallet). Its QR code opens the encrypted record. */
 export type Ticket = {
   id: string;
@@ -39,6 +39,7 @@ export async function startTransfer(specialty: string, window_min?: number) {
                  onset_or_last_known_well: new Date(Date.now() - 50 * 60_000).toISOString(),   // fictional onset 50 min before the search
                  key_scores: {}, window_min };
   const r = await fetch(`${ORCH}/transfers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
   return r.json() as Promise<{ transfer_id: string; agents: Agent[] }>;
 }
 export async function getStatus(tid: string) {
@@ -48,7 +49,7 @@ export async function accept(tid: string, hospital_id?: string) {
   const r = await fetch(`${ORCH}/transfers/${tid}/accept`, { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ hospital_id, accepting_physician: "Dr. Accepting (demo)" }) });
   if (!r.ok) throw new Error(await r.text());
-  return r.json() as Promise<{ accepted: string; treatment_start_min?: number | null; twin?: Twin }>;
+  return r.json() as Promise<{ accepted: string; treatment_start_min?: number | null; twin?: Twin; bridge?: { mode: string; status: string } }>;
 }
 export const LABEL: Record<string, string> = {
   cardiac_icu: "Heart attack (STEMI)", stroke_thrombectomy: "Stroke, large-vessel", trauma_adult: "Severe trauma",

@@ -33,7 +33,7 @@ def has_bedrock() -> bool:
 
 
 def has_twilio() -> bool:
-    return all(env(k) for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"))
+    return env("TWILIO_ENABLED", "1") == "1" and all(env(k) for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"))
 
 
 def has_stedi() -> bool:

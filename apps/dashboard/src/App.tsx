@@ -32,11 +32,37 @@ export default function App() {
   const [rec, setRec] = useState<any>();
   const [twin, setTwin] = useState<Twin>();
   const [qr, setQr] = useState<string>();
+  const [bridgeMode, setBridgeMode] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [windowMin, setWindowMin] = useState<number>();
   const [error, setError] = useState<string>();
   const [liveCalls, setLiveCalls] = useState(false);   // real phone calls only when the Twilio gateway is live
   const tidRef = useRef<string>();
+
+  function restoreStatus(s: any) {
+    setRec(s.recommendation);
+    setCards((cards) => {
+      const next = { ...cards };
+      for (const h of s.headers ?? []) if (!next[h.agent_id]) next[h.agent_id] = { ...h, status: "calling" };
+      for (const r of s.results ?? []) next[r.agent_id] = { ...next[r.agent_id], ...r, live: r.source === "live",
+        status: s.twin?.hospital === r.hospital ? "accepted" : s.twin && r.status === "available" ? "released" : r.status,
+        last_line: r.error ?? r.transcript?.at(-1)?.text };
+      return next;
+    });
+    if (s.twin) { setTwin(s.twin); setBridgeMode(s.bridge?.mode); setStoppedAt((at) => at ?? Date.now()); }
+  }
+
+  useEffect(() => {
+    const saved = new URLSearchParams(window.location.search).get("transfer");
+    if (!saved) return;
+    getStatus(saved).then((s) => {
+      if (!s.transfer_id) return;
+      tidRef.current = saved; setTid(saved); setStartedAt(Date.now() - s.elapsed_s * 1000);
+      if (s.case?.specialty) setSpecialty(s.case.specialty);
+      restoreStatus(s);
+    }).catch(() => setError("That transfer is no longer available. Start a new search."));
+  }, []);
 
   useEffect(() => {
     getCenters().then((d) => {
@@ -53,7 +79,7 @@ export default function App() {
     ws.onmessage = (m) => {
       const e = JSON.parse(m.data);
       if (e.transfer_id !== tidRef.current) return;
-      if (e.kind === "result") setCards((c) => ({ ...c, [e.agent_id]: { ...c[e.agent_id], ...e, last_line: e.transcript?.at(-1)?.text } }));
+      if (e.kind === "result") setCards((c) => ({ ...c, [e.agent_id]: { ...c[e.agent_id], ...e, live: e.source === "live", last_line: e.error ?? e.transcript?.at(-1)?.text } }));
       if (e.kind === "transfer") {
         const set = (hid: string, status: string) => setCards((c) => Object.fromEntries(Object.entries(c).map(([k, v]) => [k, v.hospital_id === hid ? { ...v, status } : v])));
         if (e.type === "held" || e.type === "accepted") set(e.hospital_id, e.type);
@@ -66,7 +92,7 @@ export default function App() {
 
   useEffect(() => {
     if (!tid) return;
-    const t = setInterval(async () => { try { setRec((await getStatus(tid)).recommendation); } catch { /* transient */ } }, 1000);
+    const t = setInterval(async () => { try { restoreStatus(await getStatus(tid)); } catch { /* transient */ } }, 1000);
     return () => clearInterval(t);
   }, [tid]);
 
@@ -81,18 +107,23 @@ export default function App() {
   }, [twin]);
 
   async function onStart() {
-    setError(undefined); setTwin(undefined); setRec(undefined); setStoppedAt(undefined);
+    if (starting) return;
+    setStarting(true);
+    setError(undefined); setBridgeMode(undefined); setTwin(undefined); setRec(undefined); setStoppedAt(undefined);
     try {
       const r = await startTransfer(specialty, windowMin);   // untouched slider = the case default window
       tidRef.current = r.transfer_id; setTid(r.transfer_id); setStartedAt(Date.now());
+      window.history.replaceState(null, "", `?transfer=${encodeURIComponent(r.transfer_id)}`);
       setCards(Object.fromEntries(r.agents.map((a) => [a.agent_id, { ...a, live: a.live && liveCalls, status: "calling" }])));   // no LIVE tag in a simulated run
-    } catch { setError("Could not start the search. Is make dev running?"); }
+    } catch { setError("Could not start the search. Check that the services are running."); }
+    finally { setStarting(false); }
   }
   async function onAccept() {
     if (!tid) return;
     setBusy(true);
     try {
       const r = await accept(tid, rec?.hospital_id);
+      setBridgeMode(r.bridge?.mode);
       setStoppedAt(Date.now());
       if (r?.twin && tidRef.current === tid) setTwin(r.twin);   // same twin as the websocket twin_ready event, in case that is missed
     } catch (e: any) { setError(String(e.message ?? e)); }
@@ -140,8 +171,8 @@ export default function App() {
               onChange={(e) => setWindowMin(Number(e.target.value))} className="w-28 accent-[#F0C06A]" />
             <b className="tabular font-medium text-ink-text">{windowMin ?? windows[specialty]?.transport_budget_min ?? 60} min</b>
           </label>
-          <button onClick={onStart} disabled={searching} className="btn-primary">
-            {searching ? "Searching…" : twin ? "New search" : "Find a bed"}
+          <button onClick={onStart} disabled={searching || starting} className="btn-primary">
+            {starting ? "Starting…" : searching ? "Searching…" : twin ? "New search" : "Find a bed"}
           </button>
         </div>
       </header>
@@ -198,14 +229,14 @@ export default function App() {
                 <div className="eyebrow flex items-center gap-1.5 text-st-yes"><span className="h-1.5 w-1.5 rounded-full bg-fill-yes" />Transfer accepted</div>
                 <div className="mt-0.5 text-base font-semibold">{acceptedName}</div>
                 <div className="text-sm text-ink-muted">
-                  {liveCalls ? "Summary read to the hospital on the call, doctors connected" : "Simulated run, no phones dialed"}{ticket ? ", transfer ticket created" : ""}
+                  {bridgeMode === "live" ? "Doctor connection requested; waiting for the phones to join" : "Simulated connection; no phones dialed"}{ticket ? ", transfer ticket created" : ""}
                   {released ? `, ${released} other ${released === 1 ? "hospital" : "hospitals"} released` : ""}.
                 </div>
               </div>
             ) : rec ? (
               <div className="win flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl px-4 py-3">
                 <div className="min-w-0">
-                  <div className="eyebrow text-gold-text">Recommended · earliest treatment</div>
+                  <div className="eyebrow text-gold-text">Recommended · {rec.source === "live" ? "confirmed by phone" : "simulated answer"}</div>
                   <div className="mt-0.5 text-base font-semibold">{rec.hospital}</div>
                   <div className="mt-0.5 flex flex-wrap gap-x-5 text-sm tabular text-ink-muted">
                     <span>Treatment in <b className="font-semibold text-ink-text">~{rec.treatment_start_min} min</b></span>

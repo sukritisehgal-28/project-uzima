@@ -79,6 +79,7 @@ def test_call_twiml_greeting_exercises_real_production_path(monkeypatch):
     """Req 1: POST /call stores TwiML with exact greeting before <Connect>; Url= used; no inline Twiml=.
     Monkeypatches _twilio so no network call occurs. Captures the Url sent to Twilio,
     resolves the stored TwiML from twiml_docs, and asserts on the real generated content."""
+    monkeypatch.setenv("VOICE_PROVIDER", "openai_realtime")
     monkeypatch.setenv("PUBLIC_HOST", "test.ngrok-free.app")
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "toktest")
@@ -296,9 +297,9 @@ def test_connect_rejected_update_uses_configured_fallback(monkeypatch):
     assert result == {"mode": "live", "sid": "fallback-call", "via": "new_call"}
     assert send.await_count == 2
     path, data = send.call_args.args
-    assert path == "Calls.json" and data["To"] == req.clinician
+    assert path == "Calls.json" and data["To"] == req.fallback_hospital
     assert "Twiml" not in data
-    assert "<Dial>+15550102</Dial>" in gateway.twiml_docs[data["Url"].rsplit("/", 1)[-1]]
+    assert "<Dial>+15550101</Dial>" in gateway.twiml_docs[data["Url"].rsplit("/", 1)[-1]]
 
 
 def test_connect_rejected_update_without_fallback_does_not_redial(monkeypatch):
