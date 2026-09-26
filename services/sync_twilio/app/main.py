@@ -40,6 +40,7 @@ SPECIALTY_NEED = {
     "stroke_thrombectomy": "a large vessel stroke patient who needs thrombectomy and a neuro ICU bed",
     "trauma_adult": "an adult trauma patient who needs a trauma bay and a surgical team",
     "trauma_burn": "a burn patient who needs a burn ICU bed",
+    "childbirth": "a high-risk delivery who needs labor and delivery, an emergency C-section team and a NICU bed",
     "trauma_pediatric": "a pediatric trauma patient who needs a pediatric trauma bay",
 }
 

@@ -25,12 +25,12 @@ body { margin: 0; background: #F7F6F3; color: #0A0B0D; font-family: Geist, ui-sa
   font: 500 10px/1 "Geist Mono", ui-monospace, monospace; color: #0A0B0D; border: 2px solid #FFFFFF; cursor: pointer;
   box-shadow: 0 0 0 1px rgba(10,11,13,.14), 0 1px 2px rgba(10,11,13,.12); }
 .mp-dot.live { box-shadow: 0 0 0 1.5px #2F6FD6, 0 1px 2px rgba(10,11,13,.12); }
-.mp-dot.accepted { outline: 2px solid #1E8A4C; outline-offset: 2px; }
+/* A hospital that says yes is drawn bigger the moment it turns green; every other pin stays the same size and still. */
+.mp-dot.available, .mp-dot.held { transform: scale(1.55); z-index: 2; }
+.mp-dot.accepted { transform: scale(1.6); z-index: 3; outline: 2px solid #1E8A4C; outline-offset: 2px; }
 .mp-dot.released, .mp-dot.no_answer { color: #5F636B; }
-/* Calling: an amber ring grows out of the dot. */
-.mp-pulse::after { content: ""; position: absolute; inset: -2px; border-radius: 9999px; border: 2px solid #F2B35B; pointer-events: none;
-  animation: mp-ring 1.6s ease-out infinite; }
-@keyframes mp-ring { 0% { transform: scale(1); opacity: .95; } 100% { transform: scale(1.85); opacity: 0; } }
+/* Calling: a still amber ring around the dot (no animation). */
+.mp-pulse::after { content: ""; position: absolute; inset: -5px; border-radius: 9999px; border: 2px solid rgba(242,179,91,.55); pointer-events: none; }
 
 .mp-label { position: absolute; width: max-content; max-width: 220px; padding: 4px 8px 5px; border-radius: 4px;
   background: #FFFFFF; border: 1px solid #E4E2DC; border-left-width: 2px; color: #0A0B0D; box-shadow: 0 1px 2px rgba(10,11,13,.06);

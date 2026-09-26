@@ -50,3 +50,15 @@ def test_several_live_phones(monkeypatch):
     hs = select_centers(Specialty.cardiac_icu)
     assert [h.live for h in hs[:4]] == [True, True, True, False]
     assert hs[1].phone == "+15550000002" and hs[3].phone == "[simulated]"
+
+
+def test_childbirth_only_calls_verified_birthing_hospitals_with_a_nicu():
+    import json
+    from pathlib import Path
+    centers = {c["id"]: c for c in json.loads((Path(__file__).resolve().parents[1] / "data" / "hospitals.json").read_text())["centers"]}
+    hs = select_centers(Specialty.childbirth)
+    ids = {h.hospital_id for h in hs}
+    assert hs and all(centers[i]["capabilities"]["childbirth"]["value"] and centers[i]["capabilities"]["childbirth"]["source"] for i in ids)
+    # children's hospitals don't deliver; these adult hospitals don't deliver or have no NICU (checked, see each capability note)
+    assert not ids & {"le_bonheur", "arkansas_childrens", "methodist_university", "baptist_memphis", "chi_st_vincent", "merit_central"}
+    assert "NICU" in hs[0].capability_question

@@ -5,19 +5,19 @@ An IPS-shaped FHIR document bundle (HL7 International Patient Summary: medicatio
 resource from a real-time eligibility check (X12 270/271 via Stedi; the demo uses Stedi's free mock requests).
 
 Delivered as a SMART Health Link (HL7 IG): the bundle is encrypted as a JWE with alg "dir" / enc "A256GCM",
-the link carries the manifest URL (>=256 bits of entropy) and the 32-byte key, flag "P" requires a passcode
-that is given to the accepting physician on the physician-to-physician call, and "exp" makes it stale after
-24 hours. Any SMART Health Links viewer can open it. Nothing is stored in the clear.
+the link carries the manifest URL (>=256 bits of entropy) and the 32-byte key, and "exp" makes it stale after
+24 hours. Our links carry no passcode: the ticket's QR code is the key, like the patient's own wallet pass (flag "P"
+is still supported for links made with a passcode). Any SMART Health Links viewer can open it. Nothing is stored in
+the clear.
 
-GET /view is a built-in viewer: it reads the link from the URL fragment (never sent to the server), asks for the
-passcode, fetches the encrypted file and decrypts it in the browser. For phones, HANDOFF_PUBLIC_URL must be an
+GET /view is a built-in viewer: it reads the link from the URL fragment (never sent to the server), fetches the
+encrypted file and decrypts it in the browser. For phones, HANDOFF_PUBLIC_URL must be an
 https tunnel to this service (browsers only decrypt on https or localhost).
 
 Transfer ticket: on acceptance the record also gets a boarding-pass style ticket that travels with the patient
 (GET /tickets/{id}, and GET /tickets/{id}.pkpass for Apple Wallet once a Pass Type ID certificate is configured).
-Its QR code is the SMART Health Link; the receiving team scans it on arrival and enters the passcode from the call.
-The ticket shows transfer facts only, never the passcode, and it keeps a copy of the link for 24 hours like a paper
-ticket would; opening the record still needs the passcode.
+Its QR code is the SMART Health Link; the receiving team scans it on arrival to open the full record. The ticket
+keeps a copy of the link for 24 hours like a paper ticket would, so whoever holds the ticket can open the record.
 """
 import base64
 import hashlib
@@ -182,7 +182,7 @@ def ips_bundle(case: Case, accepted_hospital_id: str, accepting_physician: str, 
     return {"resourceType": "Bundle", "type": "document", "timestamp": now, "entry": entries}
 
 
-def make_shl(bundle: dict, passcode: str, hours: int = 24) -> tuple[str, str]:
+def make_shl(bundle: dict, passcode: Optional[str] = None, hours: int = 24) -> tuple[str, str]:
     """Encrypt the bundle as a JWE (dir / A256GCM) and build the SMART Health Link."""
     key, iv = secrets.token_bytes(32), secrets.token_bytes(12)
     header = b64url(json.dumps({"alg": "dir", "enc": "A256GCM", "cty": FHIR_JSON}).encode())
@@ -191,7 +191,7 @@ def make_shl(bundle: dict, passcode: str, hours: int = 24) -> tuple[str, str]:
     twin_id = secrets.token_urlsafe(32)                       # >= 256 bits of entropy in the manifest URL
     exp = int((datetime.now(timezone.utc) + timedelta(hours=hours)).timestamp())
     _store[twin_id] = {"jwe": jwe, "passcode": passcode, "exp": exp, "tries_left": MAX_WRONG_PASSCODES}
-    payload = {"url": f"{BASE}/manifests/{twin_id}", "key": b64url(key), "exp": exp, "flag": "P",
+    payload = {"url": f"{BASE}/manifests/{twin_id}", "key": b64url(key), "exp": exp, **({"flag": "P"} if passcode else {}),
                "label": "Project Uzima handoff twin", "v": 1}
     return twin_id, f"{VIEWER}#shlink:/{b64url(json.dumps(payload).encode())}"
 
@@ -223,11 +223,10 @@ def build_twin(req: TwinRequest):
                                    plan="demo", checked_at=datetime.now(timezone.utc), source="offline-mock")
     case, demo_details = with_demo_details(req.case)
     bundle = ips_bundle(case, req.accepted_hospital_id, req.accepting_physician, req.transport, req.calls, insurance, demo_details)
-    passcode = f"{secrets.randbelow(10**6):06d}"          # read to the accepting physician on the bridge call, sent separately
-    twin_id, link = make_shl(bundle, passcode)
+    twin_id, link = make_shl(bundle)                       # no passcode: the ticket's QR code is the key (24 h expiry)
     ticket = make_ticket(req, case, link, insurance, _store[twin_id]["exp"])
     # TODO: persist _store and _tickets to DynamoDB
-    return {"twin_id": twin_id, "shlink": link, "passcode": passcode, "insurance": insurance.model_dump(mode="json"),
+    return {"twin_id": twin_id, "shlink": link, "insurance": insurance.model_dump(mode="json"),
             "sections": [s["title"] for s in bundle["entry"][0]["resource"]["section"]], "ticket": ticket}
 
 
@@ -325,7 +324,7 @@ def pass_json(ticket: dict, link: str) -> dict:
                 {"key": "crew", "label": "Transport crew", "value": ticket["crew"] or "—"},
                 {"key": "insurance", "label": "Insurance", "value": ticket["insurance"]},
                 {"key": "how", "label": "On arrival",
-                 "value": "Show this ticket. The receiving team scans the QR code and enters the passcode that was read to them on the transfer call."},
+                 "value": "Show this ticket. The receiving team scans the QR code to open the full record."},
                 {"key": "expires", "label": "Expires", "value": ticket["expires"], "dateStyle": "PKDateStyleMedium", "timeStyle": "PKDateStyleShort"},
             ],
         },
@@ -369,7 +368,7 @@ def ticket_page(tid: str):
     eta, expires = local(k["eta"]), local(k["expires"])
     qr = segno.make_qr(t["link"], error="m").svg_inline(scale=1, omitsize=True, border=2, dark="#0A0B0D", light="#FFFFFF")
     wallet = (f'<a class="btn" href="{html.escape(k["wallet_url"])}">Add to Apple Wallet</a>' if k["wallet_url"] and wallet_ready()
-              else '<span class="note">Apple Wallet needs the team\'s signing certificate. This page works as the ticket on any phone.</span>')
+              else "")   # Wallet is off unless the APPLE_* certificate is set; the web ticket is the ticket
     e = lambda v: html.escape(str(v if v is not None else "—"))
     return TICKET_HTML.substitute(
         code=e(k["code"]), from_city=e(k["from"]["city"].split(",")[0]), from_name=e(k["from"]["name"]),
@@ -385,7 +384,7 @@ def manifest(twin_id: str, req: ManifestRequest):
     t = _store.get(twin_id)
     if not t or t["exp"] < datetime.now(timezone.utc).timestamp() or t["tries_left"] <= 0:
         raise HTTPException(404)
-    if req.passcode != t["passcode"]:
+    if t["passcode"] is not None and req.passcode != t["passcode"]:
         t["tries_left"] -= 1
         return JSONResponse({"remainingAttempts": t["tries_left"]}, status_code=401)
     return {"files": [{"contentType": FHIR_JSON, "embedded": t["jwe"]}]}

@@ -6,6 +6,7 @@ DECLINE_REASONS = {
     "stroke_thrombectomy": ["no neuro ICU bed", "thrombectomy team in a case", "on diversion", "no staffed bed"],
     "trauma_adult": ["trauma bays full", "no surgeon available", "on diversion", "no staffed bed"],
     "trauma_burn": ["burn ICU full", "no burn surgeon tonight", "on diversion"],
+    "childbirth": ["labor and delivery full", "no NICU bed", "no obstetrician available", "on diversion"],
     "trauma_pediatric": ["PICU full", "no pediatric surgeon available", "on diversion"],
 }
 

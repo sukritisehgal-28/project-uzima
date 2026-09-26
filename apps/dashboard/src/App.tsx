@@ -9,6 +9,7 @@ const CASES: { key: string; label: string; detail: string }[] = [
   { key: "trauma_adult", label: "Trauma", detail: "needs a Level I or II trauma center" },
   { key: "trauma_burn", label: "Burn", detail: "needs a verified burn center" },
   { key: "trauma_pediatric", label: "Pediatric", detail: "needs a pediatric trauma center" },
+  { key: "childbirth", label: "Childbirth", detail: "needs labor and delivery, an emergency C-section team and a NICU" },
 ];
 
 /** "2026-09-26T18:22:00Z" -> "1:22 PM" in the viewer's time zone. */
@@ -17,7 +18,6 @@ function clock(iso?: string): string {
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "—";
 }
 /** "482913" -> "482 913", easier to read aloud. */
-const spaced = (code: string | number) => String(code).replace(/(\d{3})(?=\d)/g, "$1 ");
 
 export default function App() {
   const [specialty, setSpecialty] = useState("cardiac_icu");
@@ -106,18 +106,18 @@ export default function App() {
   const searching = n > 0 && !twin && calling > 0;
   const elapsed = startedAt ? Math.floor(((stoppedAt ?? now) - startedAt) / 1000) : 0;
   const perCall = 90;
-  const oneByOne = Math.min(Math.max(n, 1), 1 + Math.floor(elapsed / perCall));
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const w0 = windows[specialty];
   const w = w0 && windowMin ? { ...w0, transport_budget_min: windowMin, hard_max_min: windowMin } : w0;
   const caseInfo = CASES.find((c) => c.key === specialty)!;
+  const patientLabel = specialty === "trauma_pediatric" ? "8-year-old boy" : specialty === "childbirth" ? "28-year-old woman" : "62-year-old man";
   const accepted = list.find((c) => c.status === "accepted");
   const acceptedName = accepted?.hospital ?? twin?.hospital;   // a twin only exists once a hospital accepted
   const released = count("released");
   const ticket = twin?.ticket;
 
   return (
-    <div className="grid min-h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_minmax(340px,1fr)_auto] overflow-x-hidden">
+    <div className="grid min-h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(340px,1fr)_auto] overflow-x-hidden">
       {/* Top bar */}
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-ink-line px-5 py-3">
         <div className="flex min-w-0 items-baseline gap-3">
@@ -125,14 +125,14 @@ export default function App() {
           <span className="truncate text-sm text-ink-muted">{sending?.name ?? "…"}, Indianola, MS</span>
         </div>
         <div className="flex max-w-full flex-wrap items-center gap-2.5">
-          <div className="flex max-w-full overflow-x-auto rounded-full border border-ink-line bg-ink-panel p-0.5">
-            {CASES.map((c) => (
-              <button key={c.key} onClick={() => { setSpecialty(c.key); setWindowMin(undefined); }} disabled={searching}
-                className={`whitespace-nowrap rounded-full px-3 py-1 text-sm transition-colors ${specialty === c.key ? "bg-ink-raised font-medium text-ink-text" : "text-ink-muted enabled:hover:text-ink-text"} disabled:cursor-not-allowed`}>
-                {c.label}
-              </button>
-            ))}
-          </div>
+          <label className="relative">
+            <span className="sr-only">Case</span>
+            <select value={specialty} disabled={searching} onChange={(e) => { setSpecialty(e.target.value); setWindowMin(undefined); }}
+              className="appearance-none rounded-full border border-ink-line bg-ink-panel py-1.5 pl-3.5 pr-9 text-sm font-medium text-ink-text shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-gold disabled:cursor-not-allowed disabled:opacity-60">
+              {CASES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <svg aria-hidden viewBox="0 0 12 12" className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-ink-muted"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </label>
           <label className="flex items-center gap-2 whitespace-nowrap text-sm text-ink-muted">
             Care within
             <input type="range" min={10} max={120} step={5} disabled={searching}
@@ -146,43 +146,45 @@ export default function App() {
         </div>
       </header>
 
-      {/* Status strip */}
-      <section className="grid grid-cols-1 gap-px border-b border-ink-line bg-ink-line text-sm sm:grid-cols-2 xl:grid-cols-[1fr_1.2fr_1.7fr_1.4fr]">
-        <div className="bg-ink-bg px-5 py-2.5">
-          <div className="eyebrow">Elapsed · all at once</div>
-          <div className={`mt-0.5 text-xl font-semibold tabular ${twin ? "text-st-yes" : ""}`}>
-            {fmt(elapsed)}{twin && <span className="ml-2 font-serif text-[19px] font-normal italic">placed</span>}
-          </div>
-        </div>
-        <div className="bg-ink-bg px-5 py-2.5">
-          <div className="eyebrow">One at a time · ~{perCall} sec per call</div>
-          <div className="mt-0.5 whitespace-nowrap text-xl font-semibold tabular text-ink-muted">{n ? <>call {oneByOne} of {n} <span className="text-sm font-normal">· {fmt(n * perCall)} total</span></> : "—"}</div>
-        </div>
-        <div className="bg-ink-bg px-5 py-2.5">
-          <div className="eyebrow">Responses {n ? `(${n - calling} of ${n})` : ""}</div>
-          <div className="mt-1 flex flex-wrap gap-x-4 text-base font-medium tabular">
-            <Count dot="bg-fill-yes" className="text-st-yes">{yes} available</Count>
-            <Count dot="bg-fill-no" className="text-st-no">{no} declined</Count>
-            <Count dot="bg-fill-none" className="text-st-none">{none} no answer</Count>
-            {callback > 0 && <Count dot="bg-fill-calling" className="text-st-calling">{callback} call back</Count>}
-            <Count dot="bg-fill-calling" className="text-st-calling">{calling} pending</Count>
-          </div>
-        </div>
-        <div className="min-w-0 bg-ink-bg px-5 py-2.5">
-          <div className="flex min-w-0 items-baseline gap-2" title={`${caseInfo.label}: ${caseInfo.detail}`}>
-            <span className="eyebrow shrink-0">{caseInfo.label}</span>
-            <span className="truncate text-xs text-ink-muted">{caseInfo.detail}</span>
-          </div>
-          <div className="mt-0.5 text-base font-medium">{w ? <>Transport within {w.transport_budget_min} min <span className="font-normal text-ink-muted">(max {w.hard_max_min})</span></> : "—"}</div>
-        </div>
-      </section>
-
       {/* Map */}
       <section className="relative min-h-[380px]">
         <MapView sending={sending} cards={list} names={names} focusKey={tid} searching={searching} />
-        <div className="pointer-events-none absolute left-3 top-3 rounded-lg border border-ink-line bg-ink-panel px-3 py-2 text-xs shadow-xs">
-          <div className="font-medium text-ink-text">Patient: 62-year-old man, {caseInfo.label.toLowerCase()}</div>
-          <div className="mt-0.5 text-ink-muted">{tid ? <>Transfer <span className="font-mono text-[11px]">{tid}</span></> : "No active transfer"}</div>
+        <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-col items-start gap-2 lg:flex-row lg:justify-between">
+        <div data-map-overlay className="min-w-0 max-w-full rounded-xl border border-ink-line bg-ink-panel px-3.5 py-2.5 shadow-xs lg:max-w-[440px]">
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-fill-no" />
+            <span className="shrink-0 font-semibold">{caseInfo.label}</span>
+            <span className="truncate text-ink-muted">· {caseInfo.detail}</span>
+          </div>
+          <div className="mt-1 text-xs text-ink-muted">
+            {w && <>Care within <b className="font-medium text-ink-text">{w.transport_budget_min} min</b>{w.hard_max_min !== w.transport_budget_min && ` (max ${w.hard_max_min})`} · </>}
+            {patientLabel}{tid && <> · <span className="font-mono text-[11px]">{tid}</span></>}
+          </div>
+        </div>
+        <div data-map-overlay className="shrink-0 rounded-xl border border-ink-line bg-ink-panel px-4 py-3 shadow-xs">
+          <div className="flex items-end gap-7">
+            <div title={`Estimate at about ${perCall} seconds per call`}>
+              <div className="eyebrow">Calling one by one</div>
+              <div className="mt-1.5 text-[30px] font-light leading-none tracking-tight tabular text-ink-muted">{n ? fmt(n * perCall) : "—"}</div>
+            </div>
+            <div>
+              <div className="eyebrow">Project Uzima</div>
+              <div className={`mt-1.5 text-[30px] font-normal leading-none tracking-tight tabular ${twin ? "text-st-yes" : "text-gold-text"}`}>
+                {fmt(elapsed)}{twin && <span className="ml-1.5 font-serif text-[17px] italic">placed</span>}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 border-t border-ink-line pt-2">
+            <div className="eyebrow">Responses{n ? ` · ${n - calling} of ${n}` : ""}</div>
+            <div className="mt-1 grid grid-cols-2 gap-x-5 gap-y-0.5 text-sm font-medium tabular">
+              <Count dot="bg-fill-yes" className="text-st-yes">{yes} available</Count>
+              <Count dot="bg-fill-no" className="text-st-no">{no} declined</Count>
+              <Count dot="bg-fill-none" className="text-st-none">{none} no answer</Count>
+              <Count dot="bg-fill-calling" className="text-st-calling">{calling} pending</Count>
+              {callback > 0 && <Count dot="bg-fill-calling" className="text-st-calling">{callback} call back</Count>}
+            </div>
+          </div>
+        </div>
         </div>
       </section>
 
@@ -199,15 +201,6 @@ export default function App() {
                   {liveCalls ? "Summary read to the hospital on the call, doctors connected" : "Simulated run, no phones dialed"}{ticket ? ", transfer ticket created" : ""}
                   {released ? `, ${released} other ${released === 1 ? "hospital" : "hospitals"} released` : ""}.
                 </div>
-                {ticket && twin && (
-                  <div className="mt-3 max-w-md rounded-lg border border-ink-line bg-ink-panel px-3 py-2 shadow-xs">
-                    <div className="eyebrow">Record passcode</div>
-                    <div className="flex flex-wrap items-baseline gap-x-3">
-                      <span className="font-mono text-lg font-medium tracking-[.14em] text-ink-text">{spaced(twin.passcode)}</span>
-                      <span className="text-xs text-ink-muted">read to the receiving team on the call</span>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : rec ? (
               <div className="win flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl px-4 py-3">
@@ -237,8 +230,8 @@ export default function App() {
               <div className="flex items-center gap-4">
                 {qr && <img src={qr} alt="QR code for the handoff record" className="h-[76px] w-[76px] rounded-sm" />}
                 <div className="min-w-0 text-sm">
-                  <div className="text-xs text-ink-muted">Handoff record sent to {twin.hospital}</div>
-                  <div>Passcode <span className="font-mono tracking-wider">{twin.passcode}</span> <span className="text-ink-faint">· expires in 24 h</span></div>
+                  <div className="text-xs text-ink-muted">Handoff record for {twin.hospital}</div>
+                  <div className="text-ink-faint">Scan to open · expires in 24 h</div>
                   <div className="truncate text-xs text-ink-faint">Insurance check: {twin.insurance?.payer}</div>
                 </div>
               </div>
@@ -270,7 +263,7 @@ function Field({ k, v, sub }: { k: string; v: string; sub?: string }) {
 }
 
 /** The transfer ticket, laid out like a boarding pass: route and details on the left, a perforated stub with the QR on the right.
- *  The passcode is never on the ticket; the clinician sees it in the decision column. */
+ *  Its QR code opens the encrypted record; there is no passcode. */
 function TicketCard({ t, qr }: { t: Ticket; qr?: string }) {
   const mode = t.mode === "air" ? "Air" : "Ground";
   const insurance = t.insurance || "—";
@@ -307,9 +300,7 @@ function TicketCard({ t, qr }: { t: Ticket; qr?: string }) {
 
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
           <a href={t.url} target="_blank" rel="noreferrer" className="btn-primary px-3.5 py-1 text-[13px]">Open ticket</a>
-          {t.wallet_url
-            ? <a href={t.wallet_url} target="_blank" rel="noreferrer" className="btn-secondary px-3.5 py-1 text-[13px]">Add to Apple Wallet</a>
-            : <span className="min-w-[12rem] flex-1 text-[11px] leading-4 text-ink-muted">Apple Wallet needs a signing certificate; the web ticket works on any phone.</span>}
+          {t.wallet_url && <a href={t.wallet_url} target="_blank" rel="noreferrer" className="btn-secondary px-3.5 py-1 text-[13px]">Add to Apple Wallet</a>}
         </div>
       </div>
 

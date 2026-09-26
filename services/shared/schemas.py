@@ -13,6 +13,7 @@ class Specialty(str, Enum):
     trauma_adult = "trauma_adult"          # Level I/II trauma center
     trauma_burn = "trauma_burn"            # verified burn center
     trauma_pediatric = "trauma_pediatric"  # pediatric trauma center
+    childbirth = "childbirth"              # high-risk delivery: labor and delivery, emergency C-section, NICU
 
 
 class Case(BaseModel):

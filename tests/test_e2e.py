@@ -34,8 +34,8 @@ def test_end_to_end(monkeypatch):
             payload = json.loads(base64.urlsafe_b64decode(twin["shlink"].split("#shlink:/")[1] + "=="))
             twin_id = payload["url"].rsplit("/", 1)[1]
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=handoff), base_url="http://h") as h:
-            assert (await h.post(f"/manifests/{twin_id}", json={"recipient": "x", "passcode": "000000x"})).status_code == 401
-            m = (await h.post(f"/manifests/{twin_id}", json={"recipient": "x", "passcode": twin["passcode"]})).json()
+            assert "P" not in payload.get("flag", "")                      # no passcode: the ticket's QR code is the key
+            m = (await h.post(f"/manifests/{twin_id}", json={"recipient": "x"})).json()
         bundle = decrypt_shl(m["files"][0]["embedded"], payload["key"])
         assert bundle["entry"][0]["resource"]["title"] == "Project Uzima handoff twin"
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=collector), base_url="http://c") as c:
@@ -43,7 +43,7 @@ def test_end_to_end(monkeypatch):
         assert kinds[0] == "search_started" and "accepted" in kinds and kinds[-1] == "twin_ready"
         assert not any(x["kind"] == "sms" for x in outbox)             # hospitals never get texts
         bridges = [x for x in outbox if x["kind"] == "bridge"]
-        assert bridges and "passcode" in bridges[-1]["summary"]            # summary is read on the call
+        assert bridges and "ticket" in bridges[-1]["summary"] and "passcode" not in bridges[-1]["summary"]   # read on the call
 
     try:
         asyncio.run(run())

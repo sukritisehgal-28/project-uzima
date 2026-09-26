@@ -30,6 +30,7 @@ QUESTION = {
     Specialty.trauma_adult: "Do you have a trauma bay and surgical team available right now?",
     Specialty.trauma_burn: "Do you have a burn ICU bed and burn team available right now?",
     Specialty.trauma_pediatric: "Do you have a pediatric trauma bay and team available right now?",
+    Specialty.childbirth: "Do you have a labor and delivery bed, an obstetrician for an emergency C-section, and a NICU bed available right now?",
 }
 
 
@@ -149,13 +150,13 @@ async def accept(tid: str, req: AcceptRequest):
     summary = (f"This is the Uzima assistant with the referral summary. {case.age} year old {case.sex.lower()}, {case.condition}. "
                f"Arriving by {tr['recommended_mode']} in about {travel} minutes. "
                + (f"Insurance checked with {ins}. " if ins else "") +
-               f"The full record passcode is {' '.join(str(twin['passcode']))}. Connecting you to the referring doctor now.")
+               "The transfer ticket with the full record travels with the patient. Connecting you to the referring doctor now.")
     async with client("sync_twilio") as c:
         await c.post("/bridge", json={"transfer_id": tid, "agent_id": chosen["agent_id"], "summary": summary,
                                       "clinician": config.env("DEMO_SENDING_DOCTOR_PHONE", "[referring clinician]"),
                                       "fallback_hospital": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
     await _tevent(tid, "accepted", chosen["hospital_id"], accepting_physician=req.accepting_physician)
-    t["twin"] = {"shlink": twin["shlink"], "passcode": twin["passcode"], "hospital": chosen["hospital"], "insurance": twin.get("insurance"),
+    t["twin"] = {"shlink": twin["shlink"], "hospital": chosen["hospital"], "insurance": twin.get("insurance"),
                  "ticket": twin.get("ticket")}
     await _tevent(tid, "twin_ready", chosen["hospital_id"], **t["twin"])
     return {"accepted": chosen["hospital"], "treatment_start_min": chosen["treatment_start_min"], "twin": t["twin"]}

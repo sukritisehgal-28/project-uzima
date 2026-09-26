@@ -20,7 +20,7 @@ A clinician says what the patient needs and how fast. Uzima calls every capable 
 | `services/sync_openai/` | Rate limiter for model calls |
 | `services/sync_twilio/` | Twilio Voice + Media Streams ↔ OpenAI Realtime (`WS /media`), read-back and `report_capacity`, Connect on the live call |
 | `services/collector/` | Receives events/results, streams to the dashboard, bed memory, EMTALA log |
-| `services/handoff/` | Patient handoff twin: HL7 IPS bundle delivered as a SMART Health Link (JWE A256GCM, passcode, 24 h expiry), with a Stedi mock insurance check |
+| `services/handoff/` | Patient handoff twin: HL7 IPS bundle delivered as a SMART Health Link (JWE A256GCM, 24 h expiry; the ticket's QR code opens it), with a Stedi mock insurance check |
 | `apps/dashboard/` | React + Vite + Tailwind + MapLibre live map |
 | `infra/` | Kubernetes Job template, App Runner fallback, DynamoDB table |
 | `scripts/run_local_swarm.py` | Whole swarm in one process, no network: `python3 scripts/run_local_swarm.py cardiac_icu` |
