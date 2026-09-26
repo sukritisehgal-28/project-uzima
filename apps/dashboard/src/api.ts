@@ -1,14 +1,6 @@
 export const ORCH = import.meta.env.VITE_ORCHESTRATOR_URL ?? "http://localhost:8000";
 export const WS = import.meta.env.VITE_COLLECTOR_WS ?? "ws://localhost:8003/stream";
 // CARTO Positron (free, no key, light): state borders and city names. Set VITE_MAP_STYLE to the AWS Location style URL when USE_AWS=1.
-function apiFetch(url: string, init: RequestInit = {}) {
-  const headers = new Headers(init.headers);
-  if (import.meta.env.VITE_REQUIRE_DEMO_ACCESS === "1") {
-    const code = sessionStorage.getItem("uzima-demo-access");
-    if (code) headers.set("Authorization", `Bearer ${code}`);
-  }
-  return fetch(url, { ...init, headers });
-}
 export const MAP_STYLE = import.meta.env.VITE_MAP_STYLE ?? "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
 export type Transport = { est_ground_min: number; est_air_min: number; recommended_mode: "ground" | "air"; tier: string };
@@ -35,10 +27,10 @@ export type Ticket = {
 export type Twin = { shlink: string; hospital: string; insurance?: { payer: string; source: string }; ticket?: Ticket };
 
 export async function getHealth() {   // which integrations are real right now (twilio: "live" | "mock")
-  return (await apiFetch(`${ORCH}/health`)).json();
+  return (await fetch(`${ORCH}/health`)).json();
 }
 export async function getCenters() {
-  return (await apiFetch(`${ORCH}/centers`)).json();
+  return (await fetch(`${ORCH}/centers`)).json();
 }
 export async function startTransfer(specialty: string, window_min?: number) {
   // fictional demo patients: a 62-year-old man; an 8-year-old for pediatric trauma; a 28-year-old woman for childbirth
@@ -46,15 +38,15 @@ export async function startTransfer(specialty: string, window_min?: number) {
   const body = { age: child ? 8 : birth ? 28 : 62, sex: birth ? "Female" : "Male", is_pediatric: child, specialty, condition: LABEL[specialty],
                  onset_or_last_known_well: new Date(Date.now() - 50 * 60_000).toISOString(),   // fictional onset 50 min before the search
                  key_scores: {}, window_min };
-  const r = await apiFetch(`${ORCH}/transfers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const r = await fetch(`${ORCH}/transfers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(await r.text());
   return r.json() as Promise<{ transfer_id: string; agents: Agent[] }>;
 }
 export async function getStatus(tid: string) {
-  return (await apiFetch(`${ORCH}/transfers/${tid}`)).json();
+  return (await fetch(`${ORCH}/transfers/${tid}`)).json();
 }
 export async function accept(tid: string, hospital_id?: string) {
-  const r = await apiFetch(`${ORCH}/transfers/${tid}/accept`, { method: "POST", headers: { "Content-Type": "application/json" },
+  const r = await fetch(`${ORCH}/transfers/${tid}/accept`, { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ hospital_id, accepting_physician: "Dr. Accepting (demo)" }) });
   if (!r.ok) throw new Error(await r.text());
   return r.json() as Promise<{ accepted: string; treatment_start_min?: number | null; twin?: Twin; bridge?: { mode: string; status: string } }>;
