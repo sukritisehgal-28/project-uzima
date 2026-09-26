@@ -31,6 +31,17 @@ class Case(BaseModel):
     sending_physician: str = "[Dr. name]"
     callback_phone: str = "[demo phone]"
     window_min: Optional[int] = None    # clinician's "care within N minutes"; overrides the case's default transport budget
+    # Handoff content (EMTALA 42 CFR 489.24(e)(2)(iii) records + clinical handoff). All optional; the handoff service
+    # fills empty ones from data/demo_patients.json (fictional) so the demo record is complete.
+    vitals: dict = Field(default_factory=dict)          # {"Heart rate": "102 /min", "Blood pressure": "118/76 mmHg", ...}
+    vitals_at: Optional[str] = None                     # ISO time the vitals were taken
+    labs: dict = Field(default_factory=dict)            # {"Troponin I": "2.8 ng/mL (high)"}
+    treatment_given: list[str] = Field(default_factory=list)   # "Aspirin 324 mg chewed, 14:12"
+    response_to_treatment: Optional[str] = None
+    allergies: Optional[str] = None                     # "No known drug allergies" / "Penicillin (rash)"
+    pending: list[str] = Field(default_factory=list)    # care still to be done
+    certification: Optional[str] = None                 # physician's risks/benefits summary for the transfer
+    consent: Optional[str] = None                       # patient consent or written request
 
 
 class TransportEstimate(BaseModel):

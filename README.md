@@ -44,7 +44,7 @@ make smoke            # (with make dev running) start a transfer, wait for answe
 | OpenAI gateway | 8001 | Template transcripts | `OPENAI_API_KEY`, `OPENAI_MODEL` |
 | Twilio gateway | 8002 | Logs calls/SMS to `/outbox` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `PUBLIC_HOST` (ngrok), `OPENAI_API_KEY`, `DEMO_HOSPITAL_PHONES`, `DEMO_SENDING_DOCTOR_PHONE` |
 | Collector | 8003 | In memory | `USE_AWS=1` + `DYNAMODB_TABLE` |
-| Handoff twin | 8004 | Offline insurance mock | `STEDI_TEST_API_KEY` + `STEDI_MOCK_*` (Stedi's documented mock member) |
+| Handoff twin + ticket | 8004 | Offline insurance mock; web ticket at `/tickets/{id}`, record viewer at `/view` | `STEDI_TEST_API_KEY` + `STEDI_MOCK_*`; `HANDOFF_PUBLIC_URL` (https tunnel to 8004) for phones; `APPLE_*` for Apple Wallet |
 | Dashboard | 5173 | MapLibre demo tiles | `VITE_MAP_STYLE` (AWS Location map style URL) |
 
 `GET localhost:8000/health` shows which integrations are live. `SIM_A1_ANSWER=available` makes the live agents say yes when there is no live call; `SIM_TIME_SCALE=0` makes simulated answers instant.
@@ -107,7 +107,7 @@ sequenceDiagram
 | --- | --- |
 | Udit | Core and integration: orchestrator, collector, agents, infra, data. Presents. |
 | Sakshi | Voice: Twilio gateway, Media Streams to OpenAI Realtime bridge, Connect. |
-| Sukriti | Screen and submission: dashboard, video, docs. |
+| Sukriti | Patient handoff: the encrypted record as the patient's wallet for the transfer (`services/handoff`). Screen and submission: dashboard, video, docs. |
 
 ## Rules
 
