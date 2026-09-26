@@ -1,9 +1,6 @@
-"""Twilio gateway: live A1 call, SMS, release messages and the physician bridge. Runs in its own cluster.
-Without Twilio keys every endpoint logs what it would do and returns mode "mock".
-
-Live call path: POST /call dials the hospital with TwiML <Connect><Stream url=wss://PUBLIC_HOST/media>. Twilio then opens
-the /media websocket, which is bridged to the OpenAI Realtime API (GA interface, model gpt-realtime). The bridge emits the
-same four CallEvents plus the full AgentResult to the collector that the simulated call emits.
+"""Twilio demo calling and doctor handoff. Default speech uses Twilio and AWS Bedrock.
+The legacy direct Realtime bridge is available only through VOICE_PROVIDER=openai_realtime.
+Without enabled Twilio credentials endpoints return mock results.
 """
 import asyncio
 import base64
@@ -21,8 +18,11 @@ from pydantic import BaseModel
 from services.shared import config
 from services.shared.clients import client
 from services.shared.schemas import AgentHeader, AgentResult, CallEvent, Status, TranscriptLine
+from services.sync_twilio.app import gather, doctor_handoff
 
 app = FastAPI(title="Project Uzima Twilio gateway")
+app.include_router(gather.router)
+app.include_router(doctor_handoff.router)
 log = logging.getLogger("sync_twilio")
 outbox: list[dict] = []   # what was sent (or would have been, in mock mode), for the demo and tests
 # (transfer_id, agent_id) -> {"header": dict, "transfer_id": str, "case_brief": str, "call_sid": str|None}
@@ -66,6 +66,7 @@ class BridgeRequest(BaseModel):
     agent_id: str = ""
     summary: str = ""              # read to the accepting hospital before the doctors are connected
     clinician: str = ""            # referring clinician's phone (the Connect button)
+    accepting_doctor: str = ""     # separate receiving doctor; summary before clinician is dialed
     fallback_hospital: str = ""    # used when the winner was a simulated hospital with no live call
     a: str = ""                    # legacy: dial a, then connect b
     b: str = ""
@@ -108,6 +109,8 @@ async def call(req: CallRequest):
     if not config.has_twilio():
         return _mock("call", to=req.header.get("phone"), agent=req.header.get("agent_id"))
     public = config.env("PUBLIC_HOST")   # ngrok host, e.g. abcd.ngrok-free.app
+    if not public or "://" in public or "/" in public:
+        raise HTTPException(503, "Set PUBLIC_HOST to the reachable HTTPS callback hostname.")
     sending = config.env("SENDING_HOSPITAL_NAME", "South Sunflower County Hospital")
     greeting = f"Hello, this is an AI assistant calling for {sending} about a patient transfer. Please hold one moment."
     twiml = (f'<Response>'
@@ -116,7 +119,14 @@ async def call(req: CallRequest):
              f'<Parameter name="transfer_id" value="{escape(req.transfer_id)}"/>'
              f'<Parameter name="agent_id" value="{escape(req.header["agent_id"])}"/>'
              f'</Stream></Connect></Response>')
-    r = await _twilio("Calls.json", {"To": req.header["phone"], "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml)})
+    provider = config.env("VOICE_PROVIDER", "bedrock_gather")
+    if provider == "bedrock_gather":
+        h = AgentHeader(**req.header)
+        twiml = await gather.start(h, req.transfer_id, req.case_brief or default_brief(h))
+    elif provider != "openai_realtime":
+        raise HTTPException(503, "Unknown VOICE_PROVIDER")
+    r = await _twilio("Calls.json", {"To": req.header["phone"], "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml),
+                                    "Timeout": "30", "TimeLimit": str(int(MAX_CALL_S) + 180)})
     live_calls[(req.transfer_id, agent_id)]["call_sid"] = r.get("sid")
     return {"mode": "live", "sid": r.get("sid")}
 
@@ -189,7 +199,7 @@ def build_result(h: AgentHeader, transfer_id: str, args: Optional[dict], transcr
     """(outcome for call_ended, AgentResult). args=None means nothing was reported -> no_answer."""
     lines = sorted(transcript, key=lambda l: l.at)
     base = dict(transfer_id=transfer_id, agent_id=h.agent_id, hospital_id=h.hospital_id, hospital=h.hospital, lat=h.lat, lng=h.lng,
-                transport=h.transport, transcript=lines, answered_at=answered_at)
+                transport=h.transport, transcript=lines, answered_at=answered_at, source="live")
     if args is None:
         return Status.no_answer.value, AgentResult(status=Status.no_answer, **base)
     d = answer_data(args)
@@ -558,12 +568,14 @@ async def release(req: ReleaseRequest):
 @app.post("/bridge")
 async def bridge(req: BridgeRequest):
     """Connect doctor to doctor. If the winner is on a live call (on hold after saying yes), update that call:
-    the agent reads the summary, then Twilio dials the referring clinician into it. Otherwise call the clinician
-    and connect them to the fallback number."""
+    the agent reads the summary, then Twilio dials the referring clinician into it. Otherwise call the receiving
+    doctor first, read the summary and then dial the referring clinician."""
     entry = live_calls.get((req.transfer_id, req.agent_id)) if req.transfer_id else None
     say = f"<Say>{escape(req.summary)}</Say>" if req.summary else ""
     if not config.has_twilio():
         return _mock("bridge", live=bool(entry), clinician=req.clinician or req.a, summary=req.summary)
+    if req.accepting_doctor:
+        return await doctor_handoff.start(req, entry)
     if entry and entry.get("call_sid"):
         twiml = f"<Response>{say}<Dial>{escape(req.clinician or req.a)}</Dial></Response>"
         try:
@@ -574,8 +586,9 @@ async def bridge(req: BridgeRequest):
                 raise
             log.warning("Twilio rejected live-call update (HTTP %s); using configured fallback", e.response.status_code)
     to, other = (req.clinician or req.a), (req.fallback_hospital or req.b)
-    twiml = f"<Response><Say>Connecting you to the accepting hospital.</Say><Dial>{escape(other)}</Dial></Response>"
-    r = await _twilio("Calls.json", {"To": to, "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml)})
+    # The receiving doctor hears the referral before the referring clinician joins.
+    twiml = f"<Response>{say or '<Say>This is the Uzima AI assistant connecting the referring doctor.</Say>'}<Dial>{escape(to)}</Dial></Response>"
+    r = await _twilio("Calls.json", {"To": other, "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml)})
     return {"mode": "live", "sid": r.get("sid"), "via": "new_call"}
 
 
@@ -586,4 +599,6 @@ def get_outbox():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "mode": "live" if config.has_twilio() else "mock"}
+    return {"ok": True, "mode": "live" if config.has_twilio() else "mock",
+            "voice_provider": config.env("VOICE_PROVIDER", "bedrock_gather"),
+            "bedrock_enabled": config.has_bedrock(), "public_callback_configured": bool(config.env("PUBLIC_HOST"))}

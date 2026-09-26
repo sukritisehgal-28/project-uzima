@@ -108,6 +108,8 @@ class AgentResult(BaseModel):
     treatment_start_min: Optional[int] = None   # max(transport, ready_in) + handoff
     transcript: list[TranscriptLine] = Field(default_factory=list)
     answered_at: Optional[datetime] = None
+    source: Literal["live", "simulated"] = "simulated"
+    error: Optional[str] = None
 
 
 class InsuranceCheck(BaseModel):

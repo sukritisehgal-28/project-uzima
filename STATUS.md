@@ -21,6 +21,8 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 | 13 | High-risk childbirth case: verified birthing hospitals with a NICU | Screen | Sukriti + Claude Code | done | 13:57 | Dropdown option, call question, fictional demo patient, verified hospitals with sources; window 60/120 is a demo default |
 | 14 | Resolve Sakshi voice PR #4 against current main | Core / Voice integration | Udit + Codex | done | 14:09 | Merged current main into voice branch; retained both test suites. All 62 tests pass; live-call verification remains pending |
 
+| 15 | Final integration: Bedrock voice, honest failures, Connect, timing, public handoff and release plan | Core / Voice / Screen | Udit + Codex | done | 14:46 | 76 tests/build pass; full live hospital confirmation and three-party conference verified via Twilio; public ticket/record decrypt verified |
+
 ## Checkpoints
 
 - 1:00 one live call works
@@ -60,3 +62,15 @@ Newest at the bottom. One line each: time, who, message.
 - 14:08 Udit + Codex: Udit requested resolving Sakshi PR #4. Merging current main into the voice branch; the only conflict is tests/test_bridge.py. Keeping both test suites, Bedrock setup, childbirth case and the updated handoff contract. No live calls are part of this verification.
 - 14:09 Udit + Codex: PR #4 conflict resolved by combining the test imports and retaining all greeting/startup-apology, explicit-confirmation and Connect fallback tests. The production merge preserves the current Bedrock, childbirth and passcode-free handoff changes. All 62 offline tests pass; no real calls placed.
 - 14:38 Sukriti: Renamed the GitHub repo to sukritisehgal-28/project-uzima (old URLs redirect). Update your remote: git remote set-url origin git@github.com:sukritisehgal-28/project-uzima.git. Added docs/SUBMISSION.md (Udit's submission text with the passcode removed, the transfer ticket, Bedrock and the three live phones).
+
+- 14:28 Udit + Codex: User explicitly requested integration fixes after freeze. Touching runner/orchestrator, Twilio bridge, dashboard, tests and demo docs; additive bridge response fields only. Integrating PR #4 locally. Bedrock remains the OpenAI provider; investigating a Twilio speech path that does not require direct Realtime access. No live calls placed.
+
+- 14:40 Udit + Codex: Added default Twilio speech + Bedrock interpretation path, preserving Sakshi's legacy Realtime path. Added AgentResult source/error and additive bridge mode/status fields; dashboard labels simulated recommendations and requested connections accurately. Updated AGENTS.md contracts and README. 75 tests and the dashboard build pass; live Bedrock speech interpretation and public HTTPS checks pass. User explicitly authorized one hospital call and a Connect rehearsal; in progress.
+
+- 14:46 Udit + Codex: Authorized live rehearsal 10b01b57f2: hospital answered, read-back confirmed available in 10 minutes, source=live result collected. Connect updated the winning call and Twilio reports completed hospital/clinician legs (112/40 seconds). Both-way audio still requires the user's feedback. Public ticket and manifest returned 200; record decrypted to 16 entries. Adding dashboard recovery by transfer URL and polling to recover missed events. Syncing only current implementation/test facts in the new submission draft after pulling teammate changes.
+
+- 14:49 Udit + Codex: User confirmed the hospital-to-sending-doctor connection worked but requires a separate accepting-doctor call. Added signed doctor-ready callback: dial accepting doctor, play summary, then dial sending doctor into a conference and include the original hospital desk if still present. New regression verifies all three destinations, ordering and duplicate callback handling. Corrected handoff live rehearsal pending.
+
+- 14:52 Udit + Codex: Corrected doctor handoff test dialed the separate accepting doctor first, then the sending doctor after the summary callback; Twilio reports both calls completed (36/13 seconds). Waiting for user confirmation of summary and two-way audio. Sakshi PR #4 merged after preserving the latest submission draft. Updated current architecture/test facts in docs/SUBMISSION.md; repository is still private, so judges need access or an owner-approved visibility change.
+
+- 14:56 Udit + Codex: Full fresh rehearsal ac1ac837cb completed the hospital availability/ready-time/read-back sequence (confirmed yes, 10 minutes), then called the separate accepting doctor, read the summary, and dialed the sending doctor. Twilio reports all three roles in-progress in one conference, three participants and all unmuted. Dashboard restored the same transfer. 76 tests and build pass. Final code is going to main; remaining human tasks are recording, judge access to the private repo and submission.

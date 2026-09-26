@@ -1,5 +1,7 @@
 """Orchestrator: survival-window selection, bed-memory skip, swarm launch, ranking, hold and release, handoff twin."""
+import asyncio
 import json
+import httpx
 import os
 import time
 import uuid
@@ -113,12 +115,15 @@ async def transfer_status(tid: str):
     if isinstance(t, HTTPException):
         raise t
     results = await _results(tid)
-    elapsed = time.time() - t["started"]
+    elapsed = t.get("accepted_at", time.time()) - t["started"]
     ranking = rank(results)
-    done = len(results) >= len(t["headers"]) or elapsed > SWARM_TIMEOUT
+    timeout = max(SWARM_TIMEOUT, float(config.env("LIVE_CALL_TIMEOUT_S", "300")) + 25) if any(h.live for h in t["headers"]) and config.has_twilio() else SWARM_TIMEOUT
+    done = len(results) >= len(t["headers"]) or elapsed > timeout
     return {"transfer_id": tid, "state": t["state"], "elapsed_s": round(elapsed, 1), "agents": len(t["headers"]),
             "answered": len(results), "done": done, "results": results, "ranking": ranking,
-            "recommendation": ranking[0] if ranking else None, "twin": t.get("twin")}
+            "recommendation": ranking[0] if ranking else None, "twin": t.get("twin"), "bridge": t.get("bridge"),
+            "headers": [h.model_dump(mode="json") for h in t["headers"]],
+            "case": t["case"].model_dump(mode="json") if t.get("case") else None}
 
 
 @app.post("/transfers/{tid}/accept")
@@ -126,41 +131,65 @@ async def accept(tid: str, req: AcceptRequest):
     t = TRANSFERS.get(tid)
     if not t:
         raise HTTPException(404)
-    results = await _results(tid)
-    ranking = rank(results)
-    chosen = next((r for r in ranking if r["hospital_id"] == req.hospital_id), None) if req.hospital_id else (ranking[0] if ranking else None)
-    if not chosen:
-        raise HTTPException(409, "no available center to accept yet")
-    t["state"] = "accepted"
-    await _tevent(tid, "held", chosen["hospital_id"])
-    for r in ranking:                      # hospitals never get texts; the agent already thanked them on the call
-        if r["hospital_id"] != chosen["hospital_id"]:
-            await _tevent(tid, "released", r["hospital_id"])
-    insurance = None
-    if config.env("STEDI_MOCK_MEMBER_ID"):
-        insurance = {k: config.env(f"STEDI_MOCK_{k.upper()}") for k in ("payer_id", "member_id", "first", "last", "dob")}
-    twin_req = TwinRequest(case=t["case"], accepted_hospital_id=chosen["hospital_id"], accepting_physician=req.accepting_physician,
-                           transport=chosen["transport"], calls=[AgentResult(**r) for r in results], insurance_test=insurance)
-    async with client("handoff") as c:
-        twin = (await c.post("/twins", json=twin_req.model_dump(mode="json"))).json()
-    case: Case = t["case"]
-    tr = chosen["transport"]
-    travel = tr["est_ground_min"] if tr["recommended_mode"] == "ground" else tr["est_air_min"]
-    ins = (twin.get("insurance") or {}).get("payer")
-    summary = (f"This is the Uzima assistant with the referral summary. {case.age} year old {case.sex.lower()}, {case.condition}. "
-               f"Arriving by {tr['recommended_mode']} in about {travel} minutes. "
-               + (f"Insurance checked with {ins}. " if ins else "") +
-               "The transfer ticket with the full record travels with the patient. Connecting you to the referring doctor now.")
-    async with client("sync_twilio") as c:
-        await c.post("/bridge", json={"transfer_id": tid, "agent_id": chosen["agent_id"], "summary": summary,
-                                      "clinician": config.env("DEMO_SENDING_DOCTOR_PHONE", "[referring clinician]"),
-                                      "fallback_hospital": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
-    await _tevent(tid, "accepted", chosen["hospital_id"], accepting_physician=req.accepting_physician)
-    t["twin"] = {"shlink": twin["shlink"], "hospital": chosen["hospital"], "insurance": twin.get("insurance"),
-                 "ticket": twin.get("ticket")}
-    await _tevent(tid, "twin_ready", chosen["hospital_id"], **t["twin"])
-    return {"accepted": chosen["hospital"], "treatment_start_min": chosen["treatment_start_min"], "twin": t["twin"]}
-
+    async with t.setdefault("accept_lock", asyncio.Lock()):
+        if t.get("accept_response"):
+            return t["accept_response"]
+        results = await _results(tid)
+        ranking = rank(results)
+        chosen = next((r for r in ranking if r["hospital_id"] == req.hospital_id), None) if req.hospital_id else (ranking[0] if ranking else None)
+        if not chosen:
+            raise HTTPException(409, "no available center to accept yet")
+        insurance = None
+        if config.env("STEDI_MOCK_MEMBER_ID"):
+            insurance = {k: config.env(f"STEDI_MOCK_{k.upper()}") for k in ("payer_id", "member_id", "first", "last", "dob")}
+        twin_req = TwinRequest(case=t["case"], accepted_hospital_id=chosen["hospital_id"], accepting_physician=req.accepting_physician,
+                               transport=chosen["transport"], calls=[AgentResult(**r) for r in results], insurance_test=insurance)
+        twin = t.get("pending_twin") if t.get("pending_hospital") == chosen["hospital_id"] else None
+        try:
+            if twin is None:
+                async with client("handoff") as c:
+                    response = await c.post("/twins", json=twin_req.model_dump(mode="json"))
+                    response.raise_for_status()
+                    twin = response.json()
+                t["pending_twin"], t["pending_hospital"] = twin, chosen["hospital_id"]
+        except httpx.HTTPError:
+            raise HTTPException(502, "The transfer ticket could not be created. Please retry.")
+        case: Case = t["case"]
+        tr = chosen["transport"]
+        travel = tr["est_ground_min"] if tr["recommended_mode"] == "ground" else tr["est_air_min"]
+        ins = (twin.get("insurance") or {}).get("payer")
+        insurance_source = (twin.get("insurance") or {}).get("source", "")
+        insurance_line = ((f"Demo insurance data lists {ins}. " if "mock" in insurance_source
+                           else f"Insurance checked with {ins}. ") if ins else "")
+        summary = (f"This is the Uzima assistant with the referral summary. {case.age} year old {case.sex.lower()}, {case.condition}. "
+                   f"Arriving by {tr['recommended_mode']} in about {travel} minutes. "
+                   + insurance_line +
+                   "The transfer ticket with the full record travels with the patient. Connecting you to the referring doctor now.")
+        try:
+            async with client("sync_twilio") as c:
+                response = await c.post("/bridge", json={"transfer_id": tid, "agent_id": chosen["agent_id"], "summary": summary,
+                                              "clinician": config.env("DEMO_SENDING_DOCTOR_PHONE", "[referring clinician]"),
+                                              "accepting_doctor": config.env("DEMO_ACCEPTING_DOCTOR_PHONE"),
+                                              "fallback_hospital": config.env("DEMO_ACCEPTING_DOCTOR_PHONE", "[accepting doctor]")})
+                response.raise_for_status()
+                bridge = response.json()
+        except httpx.HTTPError:
+            raise HTTPException(502, "Doctor connection failed. No connection is confirmed; please retry.")
+        if bridge.get("mode") not in {"live", "mock"}:
+            raise HTTPException(502, "The phone service did not acknowledge the connection request.")
+        t["bridge"] = {"mode": bridge["mode"], "status": "initiated" if bridge["mode"] == "live" else "simulated"}
+        t["state"] = "accepted"
+        t["accepted_at"] = time.time()
+        await _tevent(tid, "held", chosen["hospital_id"])
+        for result in ranking:
+            if result["hospital_id"] != chosen["hospital_id"]:
+                await _tevent(tid, "released", result["hospital_id"])
+        await _tevent(tid, "accepted", chosen["hospital_id"], accepting_physician=req.accepting_physician)
+        t["twin"] = {"shlink": twin["shlink"], "hospital": chosen["hospital"], "insurance": twin.get("insurance"),
+                     "ticket": twin.get("ticket")}
+        await _tevent(tid, "twin_ready", chosen["hospital_id"], **t["twin"])
+        t["accept_response"] = {"accepted": chosen["hospital"], "treatment_start_min": chosen["treatment_start_min"], "twin": t["twin"], "bridge": t["bridge"]}
+        return t["accept_response"]
 
 @app.get("/centers")
 def centers():

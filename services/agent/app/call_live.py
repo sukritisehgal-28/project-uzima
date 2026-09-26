@@ -28,7 +28,8 @@ async def run_live(header: AgentHeader, emit: Emitter) -> AgentResult:
                 return AgentResult(**mine[0])
             await asyncio.sleep(1)
     result = AgentResult(agent_id=header.agent_id, hospital_id=header.hospital_id, hospital=header.hospital, lat=header.lat,
-                         lng=header.lng, status=Status.no_answer, transport=header.transport)
+                         lng=header.lng, status=Status.no_answer, transport=header.transport, source="live",
+                         error="The call timed out without a confirmed answer.")
     await emit.event("call_ended", outcome="no_answer")
     await emit.result(result)
     return result

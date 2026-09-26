@@ -19,6 +19,7 @@ start sync_openai  services.sync_openai.app.main:app  8001
 start sync_twilio  services.sync_twilio.app.main:app  8002
 start collector    services.collector.app.main:app    8003
 start handoff      services.handoff.app.main:app      8004
+start public       services.public.app.main:app       8005
 if [ -d apps/dashboard/node_modules ]; then
   (cd apps/dashboard && npm run dev -- --port 5173 > ../../.logs/dashboard.log 2>&1) & pids+=($!)
   echo "  dashboard    http://localhost:5173"
