@@ -25,6 +25,8 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 
 | 16 | One-second greeting and dashboard handoff completion | Core / Voice / Screen | Udit + Codex | done | 15:09 | 79 tests/build pass; initial pickup pause is one second; signed callbacks update calling/connected/ended states; user confirmed two-way audio |
 
+| 17 | Patient information delivery status for the demo | Screen / Handoff | Udit + Codex | done | 15:12 | Dashboard shows recipient and Patient information sent after call end, clearly labeled simulated delivery; existing record accessible through ticket; 79 tests/build pass |
+
 ## Checkpoints
 
 - 1:00 one live call works
@@ -80,3 +82,7 @@ Newest at the bottom. One line each: time, who, message.
 - 15:01 Udit + Codex: User requests one-second initial greeting delay and dashboard update after doctors finish. Touching Twilio callbacks, collector shared event type, orchestrator bridge status, dashboard and tests. Both-way phone audio confirmed by Udit.
 
 - 15:09 Udit + Codex: Added signed conference/call callbacks and internal handoff status polling (no shared event schema change). Dashboard marks connected only when both doctors join and reports call end/failure. Initial hospital TwiML pauses one second on both voice providers, with no repeated pause on later turns. 79 offline tests and build pass. User confirmed two-way audio; Twilio reports no active calls. Restarted updated services, retained the completed demo and ticket, and verified the dashboard shows Doctor call ended. No new live calls placed.
+
+- 15:11 Udit + Codex: User requests Patient information sent and explicitly permits mocking delivery. Touching dashboard UI only, using completed bridge status and the existing accepted record. Hospital-system delivery will remain clearly labeled simulated; no email, SMS or external patient-data transmission.
+
+- 15:12 Udit + Codex: Verified completed demo shows Patient information sent, Demo · simulated delivery, actual receiving hospital, and record contents; refresh preserves it. Pending/failed connections keep the record ready instead. Fixed restored timer values drifting negative during dashboard updates. UI-only delivery mock; no external transmission added.
