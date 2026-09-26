@@ -125,6 +125,8 @@ async def call(req: CallRequest):
         twiml = await gather.start(h, req.transfer_id, req.case_brief or default_brief(h))
     elif provider != "openai_realtime":
         raise HTTPException(503, "Unknown VOICE_PROVIDER")
+    # Pause once after pickup, before either provider starts its first greeting.
+    twiml = twiml.replace("<Response>", '<Response><Pause length="1"/>', 1)
     r = await _twilio("Calls.json", {"To": req.header["phone"], "From": config.env("TWILIO_FROM_NUMBER"), "Url": _twiml_url(twiml),
                                     "Timeout": "30", "TimeLimit": str(int(MAX_CALL_S) + 180)})
     live_calls[(req.transfer_id, agent_id)]["call_sid"] = r.get("sid")
