@@ -1,0 +1,123 @@
+# Project Uzima: Hackathon Submission
+
+26 Sept 2026 · @uditanshu tomar
+
+Paste-ready answers for the required submission form. Bracketed items need a real number or link before we submit.
+
+## 1. Team members' names
+
+Uditanshu (Udit) Tomar, Sakshi Asati, Sukriti Sehgal
+
+## 2. Project name
+
+Project Uzima: an AI agent that calls every capable hospital at once to find an emergency bed, then connects the doctors in one tap. The beds exist. We get people to them in time.
+
+## 3. What problem are you solving, and why does it matter?
+
+We're starting with the doctor or nurse at a small hospital who has a critical patient they can't treat: a heart attack, a stroke, severe trauma, an obstetric emergency. They have to find a bigger hospital that can take the patient right now. There's no live, shared view of which beds and teams are free, so they pick up one phone and call hospitals one at a time. Each call means waiting on hold, explaining the case again, and often hearing "we're full" or "call back." Meanwhile the patient's window is closing.
+
+The delay is measurable and deadly. Only 26% of stroke patients needing a clot-removal transfer leave the first hospital within the recommended 90 minutes (Lancet Neurology, 2026). Only 10 to 14% of hospitals meet the 30-minute goal for heart-attack transfers (JACC Case Reports, 2025). 42% of rural Americans have no major trauma center within an hour by road (JAMA Network Open, 2026). Worldwide it's larger still: of 8.6 million deaths a year from treatable conditions in low- and middle-income countries, about 5 million come from poor-quality care, many among people who had already reached the health system (Lancet Global Health Commission, 2018).
+
+This matters for everyone involved. Patients lose treatable minutes to phone tag, not to distance. Clinicians at small hospitals spend their time on hold instead of with the patient. Receiving hospitals get rushed, incomplete handoffs. And the places that suffer most, rural and under-resourced hospitals, are exactly the ones with the fewest staff to spare for calling around.
+
+The timing is right because voice AI can now hold a natural, real-time phone conversation, and cloud infrastructure can start one agent per hospital in seconds. That makes it possible to call every capable hospital at the same time, confirm each answer by reading it back, and connect the doctors. Most importantly, it works over a plain phone call. Hospitals don't need a new app, login, internet connection or IT project, so it reaches the rural and under-resourced hospitals that can least afford one, anywhere a phone line works.
+
+## 4. Describe what you built today
+
+We built a working system that runs end to end. Here's what happens, in the order a user sees it.
+
+```mermaid
+flowchart LR
+  A["Clinician picks the emergency<br/>and 'Care within'"] --> B["Uzima picks every capable<br/>hospital inside the window"]
+  B --> C["One AI agent per hospital,<br/>all calling at once"]
+  C --> D["Read-back: an answer counts<br/>only once confirmed"]
+  D --> E["Plain code ranks<br/>by time to treatment"]
+  E --> F["Connect doctors<br/>in one tap"]
+  F --> G["Transfer ticket and<br/>encrypted record"]
+```
+
+1. **The clinician asks.** On one screen, the referring clinician picks the emergency (for example, heart attack) and how fast care is needed with a "Care within" slider, then presses Find a bed. That's the only thing they have to learn.
+2. **Uzima picks the hospitals.** It finds every hospital that can treat that emergency and can be reached inside the window by road or air. In the demo, the sending hospital is South Sunflower County Hospital in rural Mississippi, and the network is 15 real receiving centers across Mississippi, Tennessee and Arkansas, with capabilities from public sources.
+3. **One agent per hospital, all at once.** Uzima starts a separate AI agent for each hospital and they all call at the same time. Three real, verified team phones take part: the receiving hospital's reception desk, which the agent calls, the accepting doctor and the sending doctor. The other hospitals are simulated with realistic answers, labeled SIM on screen.
+4. **The call.** Each agent says it's an AI assistant in its first line, gives the case in one breath, asks if they can take the patient and how soon, then reads the answer back ("So that's yes, ready in 10 minutes. Is that right?"). An answer only counts after the person on the phone confirms it. The hospital just talks. No app, link or login.
+5. **The live map.** As answers arrive, each hospital on the map turns green (yes, ready in N minutes), coral (no, with the reason) or grey (no answer). A clock shows Uzima's time next to how long calling one by one would take.
+6. **The decision.** Plain code, not the AI, ranks the confirmed yeses by time to treatment: the longer of travel time and ready time, plus handoff. The top hospital is recommended with its reasons, and the next two are held as standby.
+7. **Connect doctors.** The clinician presses one button. The agent, still on the line with the winning hospital's reception desk, reads a short summary, then the accepting doctor and the sending doctor are brought onto the call. Doctor to doctor, in one tap. Once the transfer ticket is created, the agent's calls are finished and the other hospitals are released.
+8. **The record.** Uzima also builds the patient record in the international patient summary standard (HL7 FHIR IPS), encrypted as a SMART Health Link that expires after 24 hours, plus a mock insurance check. It carries what US transfer rules (EMTALA) ask to travel with the patient: vital signs, treatment given, test results, allergies, the doctor's certification and consent, and every call. It comes with a transfer ticket, like a boarding pass: the dashboard shows "Ticket created", and on arrival the receiving team scans the ticket's QR code, which opens the record on the hospital's computer. The handoff still works by voice alone.
+
+```mermaid
+flowchart LR
+  A["Connect doctors"] --> B["Encrypted record<br/>(FHIR IPS, 24 h expiry)"]
+  A --> C["Transfer ticket<br/>with QR code"]
+  C --> D["On arrival, the hospital<br/>scans the QR code"]
+  B --> E["Record opens on the<br/>hospital's computer"]
+  D --> E
+```
+
+**How it's built.** Five small Python (FastAPI) services and a React map dashboard: an orchestrator that selects hospitals and ranks answers, a voice gateway that connects Twilio phone calls to OpenAI's realtime voice model, a collector that streams every call event live to the dashboard, and a handoff service for the encrypted record and transfer ticket. Simulated hospital conversations are generated live by OpenAI's GPT OSS model running on AWS Bedrock. Each agent is stateless and works the same whether its call is live or simulated, so adding hospitals means starting more agents, not changing code. The same agent image can run as a Kubernetes Job per hospital, and we can store call events in Amazon DynamoDB and get road times from Amazon Location on AWS. Everything also runs in a mock mode with no keys, so anyone can try it.
+
+```mermaid
+flowchart LR
+  UI["Dashboard<br/>(React + live map)"] --> ORC["Orchestrator<br/>selects and ranks"]
+  ORC --> AG["Agents<br/>(one per hospital)"]
+  AG --> VO["Voice gateway<br/>Twilio + OpenAI realtime"]
+  AG --> TX["Text gateway<br/>AWS Bedrock"]
+  AG --> COL["Collector<br/>live call events"]
+  COL --> UI
+  ORC --> HO["Handoff service<br/>record + ticket"]
+```
+
+**How we tested it.** 15 automated tests cover hospital selection inside the window, ranking, the accept flow, the voice gateway's answer handling and the Connect handoff, and they all pass. We ran [N] full rehearsals with [N] live phones ringing at once; on the live calls the agent's read-back matched what the person said [N of N] times, and Uzima reached a confirmed bed in about [N] seconds versus an estimated [N] minutes calling one by one. [Replace each bracket with what you actually measured, or remove the sentence.]
+
+**What's real and what's not.** Real: the time-window selection, one agent per hospital running in parallel, live phone calls with AI disclosure and read-back, the ranking, Connect on the live call, the encrypted record and the transfer ticket. Simulated or mocked: the other hospitals' answers (labeled SIM), the patient (fictional), and the insurance check (a sandbox). We never call real hospital numbers. Today the agents run as parallel tasks in one process; per-agent isolation on Kubernetes or AWS Bedrock AgentCore is built as a template but not running today.
+
+## 5. What's the path to real-world impact?
+
+**Who uses it and who pays.** The users are referring clinicians at small rural, critical-access and district hospitals: often a lone doctor or nurse on shift, sometimes with little training in transfer logistics. They need one button, not a new system. The buyers are the organizations that already own the transfer problem: health system transfer centers, regional stroke and heart networks, state EMS offices, and, in low- and middle-income countries, ministries of health and NGOs that run referral networks. We'd charge a flat subscription per sending hospital, never per referral, so no one is paid to steer patients.
+
+**Why it can spread where it's needed most.** Receiving hospitals need nothing: no software, no integration, no training. They answer the phone like they do today. That removes the biggest barrier to adoption in under-resourced places, where IT projects stall. The same design adapts to local languages and to hospitals with no online bed registry, because the source of truth is the person who answers the phone. And because each agent is independent, the system handles a quiet night or a mass-casualty surge the same way: more calls means more agents in parallel, not a longer queue.
+
+**First pilot.** Four weeks in shadow mode with one rural sending hospital and its usual receiving hospitals. Uzima runs alongside the normal process without changing care. We'd measure time to a confirmed bed, calls per placement, share of transfers inside the survival window, and a clinician rating, then compare against the same hospital's transfers without Uzima.
+
+**What has to be true to scale.**
+
+- Privacy and security: HIPAA compliance, a business associate agreement with each vendor, and sharing only the minimum case details until a hospital accepts.
+- Transfer law: EMTALA in the US, so a transfer is never delayed or filtered by insurance status.
+- Call rules: AI disclosure on every call (FCC treats AI voices as artificial under the TCPA), and consent before any recording where two-party consent applies.
+- Reliability: a human fallback on every step, isolated agents so one failing call can't affect others, and an audit trail of every answer.
+- Outside the US: local languages, local phone costs, and partners who already run referral networks.
+
+**Risks and how we handle them.**
+
+- Hospitals may not trust an AI caller. We disclose it up front, keep calls under a minute, and the clinician joins the call before anything is committed.
+- The AI could mishear. Every answer is read back and confirmed, unclear answers are asked once more and then marked unclear, and nothing counts without a confirmation.
+- People could over-trust the recommendation. The ranking is plain, explainable code, and a clinician confirms every transfer.
+- Regulatory scope. Uzima coordinates logistics and never gives clinical advice; we'd confirm that scope with counsel and clinical partners before a pilot.
+
+## 6 to 8. Links and confirmation
+
+- Demo link: [shareable link to the pitch deck or live demo page; open it in a private window to check]
+- Code repository: https://github.com/sukritisehgal-28/project-uzima [must be public, or judges given access, before submitting]
+- Demo video: [link, under 3 minutes, one clean run with live phones ringing]
+- Confirmation: we confirm the project was built at this hackathon, and it uses only fictional patient data. The receiving hospitals are real public facilities, but their answers in the demo are simulated or come from team and judge phones; we never call real hospital numbers.
+
+---
+
+## Rubric check (for us, delete before pasting)
+
+| Criterion | Where we meet it |
+| --- | --- |
+| Problem significance and impact | Q3: sourced numbers on transfer delays in the US and deaths from poor-quality care worldwide; a clear user (the clinician at a small hospital) and a clear cost (minutes lost to phone tag). |
+| Innovation and use of AI | Q4: many voice agents calling in parallel, read-back confirmation before an answer counts, AI coordinates while plain code and a human decide. Hospitals need no technology at all. |
+| Technical execution | Q4: five services, live phone calls bridged to realtime voice AI, live event stream to the map, standards-based encrypted record, automated tests, honest line between real and simulated. |
+| Real-world viability | Q5: named users and buyers, a flat per-hospital price, a four-week shadow pilot with metrics, HIPAA, EMTALA and TCPA addressed, risks with mitigations. |
+| Strength of demonstration | Demo: the reception desk's real phone rings while simulated hospitals answer on the map, the answer is read back, one tap brings the accepting and sending doctors onto the call, and the transfer ticket appears. The written answers match exactly what we show. |
+
+## Before we submit
+
+- [ ] Every bracket above is replaced with a real number or link, or removed
+- [ ] Repo is public (or judges have access) and the README's "How to run" works
+- [ ] Deck and video links open in a private browser window
+- [x] Sakshi's surname added
+- [ ] Answers match the demo and the pitch: 3 live phones (reception desk, accepting doctor, sending doctor), the rest labeled SIM, fictional patient
+- [ ] Submitted by 3:00 PM PT
