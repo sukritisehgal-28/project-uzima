@@ -31,6 +31,10 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 
 | 19 | Remove demo access code | Screen / Core | Udit + Codex | done | 15:30 | Removed login and API code checks; updated preview ready; 81 backend and 3 relay tests/build pass |
 
+| 20 | Fix hosted transfer API routing | Screen / Core | Udit + Codex | done | 15:49 | Explicit relay rewrite deployed; submitted-site health/centers and nested transfer/accept routes reach GCP; 3 relay tests pass |
+
+| 21 | Move backend to Google Cloud | Core / Infrastructure | Udit + Codex | done | 15:49 | Cloud Run backend live; submitted Vercel domain connected; simulated transfer/ticket/decryption and real Bedrock inference pass; 82 Python tests pass; cloud phone audio rehearsal pending |
+
 ## Checkpoints
 
 - 1:00 one live call works
@@ -98,3 +102,9 @@ Newest at the bottom. One line each: time, who, message.
 - 15:29 Udit + Codex: User explicitly requests removing the access code altogether. Removing dashboard login, relay authentication requirement and local gateway code check; retaining the existing route allowlist and signed Twilio callbacks.
 
 - 15:30 Udit + Codex: Removed the demo access code from UI, both relays and private local settings at the user’s explicit request. Unauthenticated tunnel health/current-demo requests return 200; callback signatures and private route restrictions remain. New preview: https://project-uzima-ixm7ocyn7-uditanshu-tomars-projects.vercel.app . No phone calls placed.
+
+- 15:36 Udit + Codex: User asks whether backend is connected and offers GCP hosting with hello@oriva.health. Live production check found nested API routing failure before the relay; local transfer exists. Fixing Vercel routing and tests. GCP credentials require reauthentication.
+
+- 15:39 Udit + Codex: Creating separate uzima-hackathon-20260926 project for the user-authorized GCP backend migration. Container packages only services, data and dependencies; provider credentials go through Secret Manager. Existing Oriva/Veronica projects remain unchanged.
+
+- 15:49 Udit + Codex: Deployed the backend in isolated GCP project uzima-hackathon-20260926 with Secret Manager credentials and one Cloud Run instance. Submitted https://project-uzima.vercel.app now relays to GCP; laptop/tunnel no longer required. Cloud simulation produced 10 results and a ticket whose record decrypted to 16 entries; actual Bedrock inference from GCP passed. Enabled live Twilio after simulation; no real calls placed during migration. 82 Python tests, 3 relay tests and production build pass. State remains in memory and AWS temporary credentials require renewal.
