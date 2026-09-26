@@ -6,11 +6,11 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 
 | # | Task | Lane | Owner (name + tool) | Status | Updated | Result / next step |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | One real live call end to end: phone rings, read-back, events on the map | Voice | Udit + Codex | blocked | 12:56 | Local app runs; confirmation bypass fixed; 31 offline tests pass. Real call untested: needs Twilio/OpenAI credentials and ngrok auth (ERR_NGROK_4018). .env stays untracked |
-| 2 | Three live phones at once on the Twilio trial | Voice | Udit + Codex | blocked | 12:56 | Await successful one-phone test and three user-verified numbers; no real calls placed |
-| 3 | Connect doctors on the live call (summary, then clinician dialed in) | Voice | Udit + Codex | blocked | 12:56 | Offline tests verify summary before dial and fallback after rejected live-call update. Needs live call, clinician phone and fallback phone for real verification |
+| 1 | One real live call end to end: phone rings, read-back, events on the map | Voice | Voice teammate | todo | 13:21 | Udit clarified his friend owns calling. Confirmation fix 0e94809 is available; teammate to report real-call outcome |
+| 2 | Three live phones at once on the Twilio trial | Voice | Voice teammate | todo | 13:21 | Voice teammate to verify after one-phone test; coordinate with Udit for integrated run |
+| 3 | Connect doctors on the live call (summary, then clinician dialed in) | Voice | Voice teammate | todo | 13:21 | Offline summary/dial and rejected-update fallback tests pass; voice teammate owns live verification |
 | 4 | Full run with 3 live + 7 simulated, ranking and accept | Core | Udit | todo | 12:30 | `make dev`, default window, heart attack |
-| 5 | AWS road times (USE_AWS=1, us-west-2) | Core | Udit | todo | 12:30 | Optional; skip if access denied |
+| 5 | AWS road times (USE_AWS=1, us-west-2) | Core | Udit + Codex | blocked | 13:21 | Scope: Location project-uzima-routes and DynamoDB project-uzima. CLI installed, but AWS credentials not visible; waiting for hackathon credential file/profile |
 | 6 | Dashboard polish to match the deck | Screen | Sukriti + Claude Code | done | 13:35 | White version of the deck's style (Geist, gold accent, light map) for hospital screens; "Ticket created" panel; LIVE tag only when Twilio is live; call-backs counted apart from pending |
 | 7 | Demo video of a clean run (about 2 min) | Screen | Sukriti | todo | 12:30 | Record by 2:15 |
 | 8 | README screenshots and submission text | Screen | Sukriti | todo | 12:30 | Submit by 2:45 |
@@ -40,3 +40,5 @@ Newest at the bottom. One line each: time, who, message.
 - 13:52 Udit + Codex: Rebasing onto the latest main. Resolving the overlap between Sakshi's URL-based TwiML fix and our earlier rejected-update fallback; preserving both behaviors and both test sets.
 - 12:59 Udit + Codex: Browser rehearsal completed in mock mode: all 10 hospitals emitted all four events; Connect created the encrypted handoff and one mock bridge with a passcode summary. Dashboard build and 31 offline tests pass. No real calls placed.
 - 12:59 Udit + Codex to Screen lane: Existing mock UI labels A1 live and says doctors connected/record sent; callback_requested stays counted as pending after collector has all 10 results. Observed in transfer 9b271415fe; dashboard left unchanged.
+- 13:21 Udit + Codex: Ownership corrected per Udit: his friend handles calling; Udit owns core integration, presenting and AWS. Voice rows are pending teammate verification, not blocked by Udit lacking voice credentials. AWS stays disabled until access and resources are verified.
+- 13:22 Udit + Codex: AWS CLI 2.37.4 verified. STS checks for default, clinsight and clinsight-new all return NoCredentials, including a fresh interactive login shell. Installed boto3 locally; no AWS resources created or integration enabled. Need hackathon credentials saved in .env or an authenticated profile.
