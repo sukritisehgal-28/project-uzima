@@ -14,7 +14,7 @@ Project Uzima: an AI agent that calls every capable hospital at once to find an 
 
 ## 3. What problem are you solving, and why does it matter?
 
-We're starting with the doctor or nurse at a small hospital who has a critical patient they can't treat: a heart attack, a stroke, severe trauma, an obstetric emergency. They have to find a bigger hospital that can take the patient right now. There's no live, shared view of which beds and teams are free, so they pick up one phone and call hospitals one at a time. Each call means waiting on hold, explaining the case again, and often hearing "we're full" or "call back." Meanwhile the patient's window is closing.
+We're starting with the doctor or nurse at a small hospital who has a critical patient they can't treat: a heart attack, a stroke, severe trauma, an obstetric emergency. They have to find a bigger hospital that can take the patient right now. There's no live, shared view of which beds and teams are free, so they pick up one phone and call hospitals one at a time. Each call means waiting on hold, explaining the case again, and often hearing "we're full" or "call back." Meanwhile the patient's window is closing: only 26% of stroke patients needing a clot-removal transfer leave the first hospital within the recommended 90 minutes (Lancet Neurology, 2026), and only 10 to 14% of hospitals meet the 30-minute goal for heart-attack transfers (JACC Case Reports, 2025).
 
 Sequential calling adds coordination delay before a transfer can be arranged. Our prototype targets that step: asking multiple capable hospitals at once and turning their confirmed answers into a clear choice for the referring clinician. Clinical outcome benefits still need to be measured in a supervised pilot.
 
