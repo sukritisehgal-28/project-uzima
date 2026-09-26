@@ -105,3 +105,9 @@ Persist calls/tickets/results, add end-to-end call status callbacks and reconcil
 The original hospital desk and the accepting doctor are separate roles and separate numbers. Connect now explicitly dials the accepting doctor before the sending doctor. The hospital desk can leave the conference without ending the doctors' conversation. Udit reported the isolated corrected summary/handoff ran; a fresh full-sequence rehearsal was then started at 2:54 PM, including the hospital confirmation from the beginning.
 
 Submission priority now: finish that rehearsal, save a recording, provide judge access to the currently private repository, and submit before 3:00 PM. No additional feature work is required for the demo scope.
+
+## Final full-sequence evidence — 2:56 PM PT
+
+Fresh transfer `ac1ac837cb` ran from the beginning. The hospital confirmed availability and a 10-minute ready time. Connect then dialed the separate accepting doctor, played the summary, and dialed the sending doctor. Twilio reported the hospital desk, accepting doctor and sending doctor all in progress, with three unmuted participants in the same conference. The dashboard and a new HTTPS transfer ticket represent that fresh run. Provider state confirms all three joined; human listening remains the authority on audio quality.
+
+**Software release gates passed:** 76 automated tests, production dashboard build, actual Bedrock inference, live confirmation/collector/dashboard flow, separate accepting-doctor handoff, public ticket/record checks. **Remaining human release tasks:** save the demo video, give judges repository access (it is private), complete and confirm the submission. Keep the running services and tunnel open during the demo.
