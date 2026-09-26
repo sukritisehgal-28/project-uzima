@@ -17,7 +17,7 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 | 9 | AgentCore sandboxes | Core | - | cut | 12:30 | Only if 1 to 4 are done by 1:30 |
 | 10 | Chaos "kill a sandbox" button | Core | - | cut | 12:30 | Only if 1 to 4 are done by 1:30 |
 | 11 | Patient handoff: encrypted record + transfer ticket (web + Apple Wallet) | Screen | Sukriti + Claude Code | done | 13:35 | Ticket at /tickets/{id} (its QR opens the record), viewer at /view, EMTALA handoff content with fictional demo data. Wallet needs the APPLE_* certificate; phones need an https tunnel to 8004 and HANDOFF_PUBLIC_URL |
-| 12 | OpenAI text generation through AWS Bedrock | Core / Voice integration | Udit + Codex | done | 13:50 | Live GPT OSS 20B text and three persona scenarios verified in us-west-2; enabled and app restarted. 57 offline tests pass. Voice adaptation remains separate |
+| 12 | OpenAI text generation through AWS Bedrock | Core / Voice integration | Udit + Codex | done | 13:53 | Live GPT OSS 20B text and three persona scenarios verified in us-west-2; enabled locally. 58 tests pass after merging teammate updates. Voice adaptation remains separate |
 
 ## Checkpoints
 
@@ -38,7 +38,6 @@ Newest at the bottom. One line each: time, who, message.
 
 - 12:53 Udit + Codex: Voice lane: adding offline regressions in tests/test_bridge.py for mandatory read-back confirmation and Connect fallback; no shared schema or endpoint changes.
 
-- 13:52 Udit + Codex: Rebasing onto the latest main. Resolving the overlap between Sakshi's URL-based TwiML fix and our earlier rejected-update fallback; preserving both behaviors and both test sets.
 - 12:59 Udit + Codex: Browser rehearsal completed in mock mode: all 10 hospitals emitted all four events; Connect created the encrypted handoff and one mock bridge with a passcode summary. Dashboard build and 31 offline tests pass. No real calls placed.
 - 12:59 Udit + Codex to Screen lane: Existing mock UI labels A1 live and says doctors connected/record sent; callback_requested stays counted as pending after collector has all 10 results. Observed in transfer 9b271415fe; dashboard left unchanged.
 - 13:21 Udit + Codex: Ownership corrected per Udit: his friend handles calling; Udit owns core integration, presenting and AWS. Voice rows are pending teammate verification, not blocked by Udit lacking voice credentials. AWS stays disabled until access and resources are verified.
@@ -49,3 +48,6 @@ Newest at the bottom. One line each: time, who, message.
 - 13:40 Udit + Codex: Udit saved the temporary event credentials locally; STS now verifies the Workshop participant role in us-west-2. Checking actual Bedrock inference and the agreed DynamoDB/Location resources. Credentials remain private and gitignored.
 - 13:50 Udit + Codex: Bedrock returned "Uzima ready" from the running HTTP service. Live tests exposed malformed native JSON-format output and invented transcript details; changed requests to validated plain JSON and rephrasing existing demo lines, preserving the AI disclosure/questions. Available, declined and callback examples now pass; 57 offline tests pass. USE_BEDROCK=1 locally. Workshop policy denies the storage/route checks, so USE_AWS remains 0 and no resources were created.
 - 13:50 Udit + Codex: Integrated 10-hospital simulation d4dfee52fb returned all 10 results with eight transcripts (two no-answers). This randomized run had no acceptance, so no new handoff was exercised. Twilio remained mock and no phones were dialed. Task 4 still needs the voice teammate's three real calls.
+- 13:52 Udit + Codex: Rebasing onto the latest main. Resolving the overlap between Sakshi's URL-based TwiML fix and our earlier rejected-update fallback; preserving both behaviors and both test sets.
+- 13:53 Udit + Codex: Preserved the main-branch TwiML URL change and both regression suites (confirmation/fallback fix now 3d12f29). Updating AWS setup instructions in AGENTS.md/infra README because main removed the invalid DynamoDB metadata; retaining the team's boto3 CRT dependency.
+- 13:53 Udit + Codex: All 58 tests pass with the merged code and installed AWS CRT dependency. Final local configuration: Bedrock text live, Twilio mock, DynamoDB in memory and Location estimated.

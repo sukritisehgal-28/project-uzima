@@ -68,8 +68,8 @@ Bedrock text integration alone does not complete the phone path.
 - **DynamoDB:** table `project-uzima`, string partition key `pk`, string sort key
   `sk`, on-demand billing, TTL attribute `ttl`. The collector writes call events,
   results, transfer events and bed memory; reads currently remain in memory.
-  Do not pass `dynamodb-table.json` directly to the CLI: `_items` is documentation,
-  not a valid CreateTable field.
+  `dynamodb-table.json` is valid CreateTable input. Configure TTL separately
+  after the table exists.
 - **Amazon Location:** route calculator `project-uzima-routes`, configured through
   `AWS_LOCATION_ROUTE_CALCULATOR`. Only ground travel times use road routes;
   air times stay estimated. Failed lookups use the existing estimates.

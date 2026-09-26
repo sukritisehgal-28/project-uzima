@@ -2,4 +2,4 @@ fastapi
 uvicorn[standard]
 pydantic>=2
 httpx
-boto3>=1.40
+boto3[crt]>=1.41.0,<2
