@@ -31,6 +31,23 @@ stub Bedrock and do not establish live access.
 The gateway limits concurrent requests and runs the synchronous SDK off the
 async event loop. The SDK retries transient failures. Bedrock's GPT OSS reasoning
 prefix is removed before returning text or parsing persona JSON.
+The live GPT OSS check returned malformed JSON with the native `response_format`
+setting, so JSON requests use an explicit instruction followed by local JSON
+validation. Persona responses also validate speakers and text; malformed or
+truncated responses fall back to templates.
+Persona generation rephrases an existing demo transcript and validates its
+speaker sequence. The AI disclosure and questions are preserved verbatim.
+
+### Verified on September 26, 2026
+
+- Temporary Workshop credentials authenticate successfully in `us-west-2`.
+- `openai.gpt-oss-20b-1:0` returned live text and valid conversations for
+  available, declined and callback scenarios. Bedrock is enabled locally.
+- The Workshop policy `ws-default-policy` explicitly denied
+  `dynamodb:DescribeTable` and `geo:DescribeRouteCalculator` for the agreed
+  resources. `USE_AWS=0` retains local storage and travel estimates; no resources
+  were created. Enabling these services requires the workshop administrator to
+  grant the required access.
 
 Sources: [AWS OpenAI model requests](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-openai.html),
 [GPT OSS 20B regions and capabilities](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-oss-20b.html).

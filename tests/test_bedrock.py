@@ -21,8 +21,8 @@ def settings(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
-def client_returning(monkeypatch, text):
-    stream = io.BytesIO(json.dumps({"choices": [{"message": {"content": text}}]}).encode())
+def client_returning(monkeypatch, text, finish_reason="stop"):
+    stream = io.BytesIO(json.dumps({"choices": [{"message": {"content": text}, "finish_reason": finish_reason}]}).encode())
     client = Mock()
     client.invoke_model.return_value = {"body": stream}
     factory = Mock(return_value=client)
@@ -38,8 +38,8 @@ def test_bedrock_uses_aws_model_and_preserves_json_mode(monkeypatch):
     call = client.invoke_model.call_args.kwargs
     assert call["modelId"] == "openai.gpt-oss-20b-1:0"
     body = json.loads(call["body"])
-    assert body["model"] == call["modelId"] and body["messages"] == req.messages
-    assert body["response_format"] == {"type": "json_object"}
+    assert body["model"] == call["modelId"] and body["messages"][1:] == req.messages
+    assert "response_format" not in body
     assert stream.closed
     assert config.integrations()["openai"] == "live"
 
@@ -67,6 +67,27 @@ def test_missing_final_answer_is_rejected(content):
         gateway._answer_text(content)
 
 
+@pytest.mark.parametrize("content", ['{"{"lines":[]}', "[]", "null"])
+def test_json_mode_rejects_malformed_or_non_object_answers(monkeypatch, content):
+    client_returning(monkeypatch, content)
+    with pytest.raises(ValueError):
+        asyncio.run(gateway.complete(gateway.CompleteRequest(messages=[], json_mode=True)))
+
+
+def test_truncated_answer_is_rejected(monkeypatch):
+    client_returning(monkeypatch, "Incomplete answer", finish_reason="length")
+    with pytest.raises(ValueError, match="output limit"):
+        asyncio.run(gateway.complete(gateway.CompleteRequest(messages=[])))
+
+
+@pytest.mark.parametrize("lines", [[], [{"speaker": "doctor", "text": "Yes"}],
+                                  [{"speaker": "hospital", "text": ""}], [{"speaker": "hospital", "text": "Yes"}]])
+def test_invalid_conversation_uses_template_fallback(monkeypatch, lines):
+    client_returning(monkeypatch, json.dumps({"lines": lines}))
+    p = gateway.PersonaRequest(hospital="Demo", question="Bed available?", answer={"status": "available", "ready_in_min": 10})
+    assert asyncio.run(gateway.personas(p)) == {"mode": "fallback", "lines": gateway.template_lines(p)}
+
+
 def test_direct_openai_key_does_not_enable_text_requests(monkeypatch):
     monkeypatch.setenv("USE_BEDROCK", "0")
     monkeypatch.setenv("OPENAI_API_KEY", "unused-test-value")
@@ -88,8 +109,10 @@ def test_missing_aws_credentials_falls_back_to_templates(monkeypatch):
 
 
 def test_bedrock_personas_reach_existing_http_contract(monkeypatch):
-    expected = [{"speaker": "agent", "text": "Hi, this is an AI transfer assistant."}]
-    client_returning(monkeypatch, json.dumps({"lines": expected}))
+    expected = [{"speaker": "agent", "text": f"{gateway.OPENING} Bed available?"},
+                {"speaker": "hospital", "text": "Sorry, we have no bed available."}]
+    generated = [{"speaker": "agent", "text": "Model changed the required disclosure."}, expected[1]]
+    client_returning(monkeypatch, json.dumps({"lines": generated}))
     async def run():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=gateway.app), base_url="http://test") as client:
             response = await client.post("/personas", json={"hospital": "Demo", "question": "Bed available?", "answer": {"status": "declined"}})

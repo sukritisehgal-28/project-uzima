@@ -7,11 +7,12 @@ import json
 import os
 from contextlib import closing
 from functools import lru_cache
+from typing import Literal
 
 import boto3
 from botocore.config import Config
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from services.shared import config
 
@@ -31,6 +32,15 @@ class PersonaRequest(BaseModel):
     hospital: str
     question: str
     answer: dict
+
+
+class PersonaLine(BaseModel):
+    speaker: Literal["agent", "hospital"]
+    text: str = Field(min_length=1)
+
+
+class PersonaResponse(BaseModel):
+    lines: list[PersonaLine] = Field(min_length=1)
 
 
 @lru_cache(maxsize=4)
@@ -57,15 +67,25 @@ def _answer_text(content: str) -> str:
 
 def _complete_bedrock(req: CompleteRequest) -> str:
     model = req.model or config.env("BEDROCK_MODEL_ID") or "openai.gpt-oss-20b-1:0"
-    body = {"model": model, "messages": req.messages, "max_completion_tokens": 2048}
+    messages = req.messages
     if req.json_mode:
-        body["response_format"] = {"type": "json_object"}
+        # Native response_format produced malformed JSON in live GPT OSS tests.
+        # Request plain output and validate the object before exposing it.
+        messages = [{"role": "system", "content": "Return only a valid JSON object. Do not use Markdown fences "
+                     "or any text outside the JSON. Reasoning: low"}, *messages]
+    body = {"model": model, "messages": messages, "max_completion_tokens": 2048, "reasoning_effort": "low"}
     region = config.env("AWS_REGION") or config.env("AWS_DEFAULT_REGION") or "us-west-2"
     response = _bedrock_client(region).invoke_model(
         modelId=model, body=json.dumps(body), contentType="application/json", accept="application/json")
     with closing(response["body"]) as stream:
         result = json.loads(stream.read())
-    return _answer_text(result["choices"][0]["message"]["content"])
+    choice = result["choices"][0]
+    if choice.get("finish_reason") == "length":
+        raise ValueError("Bedrock answer exceeded the output limit")
+    answer = _answer_text(choice["message"]["content"])
+    if req.json_mode and not isinstance(json.loads(answer), dict):
+        raise ValueError("Bedrock returned JSON that is not an object")
+    return answer
 
 
 async def complete(req: CompleteRequest) -> str:
@@ -98,13 +118,21 @@ async def post_complete(req: CompleteRequest):
 async def personas(p: PersonaRequest):
     if not config.has_bedrock():
         return {"mode": "mock", "lines": template_lines(p)}
-    prompt = ("Write a realistic, very short phone exchange (3-5 lines) between an AI transfer assistant and the "
-              f"transfer line at {p.hospital}. The assistant opens with: \"{OPENING}\" and asks: \"{p.question}\" "
-              f"The hospital's answer must match exactly: {json.dumps(p.answer)}. If available, the assistant also asks "
-              "when they can be ready. Return JSON {\"lines\":[{\"speaker\":\"agent\"|\"hospital\",\"text\":...}]}.")
+    base = template_lines(p)
+    prompt = (f"Polish this fictional demo phone exchange with the transfer line at {p.hospital}. "
+              "Return the same JSON structure with the same number of lines and speakers. Keep all agent lines "
+              "unchanged. You may rephrase the hospital's sentences naturally, but preserve every fact and number. "
+              "Do not add any facts, timing, bed answers or details. A request to call back does not mean yes or no. "
+              f"Transcript: {json.dumps({'lines': base})}")
     try:
         content = await complete(CompleteRequest(messages=[{"role": "user", "content": prompt}], json_mode=True))
-        return {"mode": "live", "lines": json.loads(content)["lines"]}
+        result = PersonaResponse.model_validate_json(content)
+        if [line.speaker for line in result.lines] != [line["speaker"] for line in base]:
+            raise ValueError("Bedrock changed the conversation structure")
+        for line, original in zip(result.lines, base):
+            if line.speaker == "agent":
+                line.text = original["text"]
+        return {"mode": "live", "lines": [line.model_dump() for line in result.lines]}
     except Exception:
         return {"mode": "fallback", "lines": template_lines(p)}
 
