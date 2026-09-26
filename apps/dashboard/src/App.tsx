@@ -33,6 +33,14 @@ export default function App() {
   const [twin, setTwin] = useState<Twin>();
   const [qr, setQr] = useState<string>();
   const [bridgeMode, setBridgeMode] = useState<string>();
+  const [bridgeStatus, setBridgeStatus] = useState<string>();
+  const bridgeLabel: Record<string, string> = {
+    calling_accepting_doctor: "Calling accepting doctor; referral summary will play first",
+    calling_sending_doctor: "Calling referring doctor; waiting for both doctors to join",
+    connected: "Doctors connected — call in progress",
+    ended: "Doctor call ended",
+    failed: "Doctor connection ended before both doctors joined",
+  };
   const [busy, setBusy] = useState(false);
   const [starting, setStarting] = useState(false);
   const [windowMin, setWindowMin] = useState<number>();
@@ -50,7 +58,7 @@ export default function App() {
         last_line: r.error ?? r.transcript?.at(-1)?.text };
       return next;
     });
-    if (s.twin) { setTwin(s.twin); setBridgeMode(s.bridge?.mode); setStoppedAt((at) => at ?? Date.now()); }
+    if (s.twin) { setTwin(s.twin); setBridgeMode(s.bridge?.mode); setBridgeStatus(s.bridge?.status); setStoppedAt((at) => at ?? Date.now()); }
   }
 
   useEffect(() => {
@@ -109,7 +117,7 @@ export default function App() {
   async function onStart() {
     if (starting) return;
     setStarting(true);
-    setError(undefined); setBridgeMode(undefined); setTwin(undefined); setRec(undefined); setStoppedAt(undefined);
+    setError(undefined); setBridgeMode(undefined); setBridgeStatus(undefined); setTwin(undefined); setRec(undefined); setStoppedAt(undefined);
     try {
       const r = await startTransfer(specialty, windowMin);   // untouched slider = the case default window
       tidRef.current = r.transfer_id; setTid(r.transfer_id); setStartedAt(Date.now());
@@ -123,7 +131,7 @@ export default function App() {
     setBusy(true);
     try {
       const r = await accept(tid, rec?.hospital_id);
-      setBridgeMode(r.bridge?.mode);
+      setBridgeMode(r.bridge?.mode); setBridgeStatus(r.bridge?.status);
       setStoppedAt(Date.now());
       if (r?.twin && tidRef.current === tid) setTwin(r.twin);   // same twin as the websocket twin_ready event, in case that is missed
     } catch (e: any) { setError(String(e.message ?? e)); }
@@ -229,7 +237,7 @@ export default function App() {
                 <div className="eyebrow flex items-center gap-1.5 text-st-yes"><span className="h-1.5 w-1.5 rounded-full bg-fill-yes" />Transfer accepted</div>
                 <div className="mt-0.5 text-base font-semibold">{acceptedName}</div>
                 <div className="text-sm text-ink-muted">
-                  {bridgeMode === "live" ? "Doctor connection requested; waiting for the phones to join" : "Simulated connection; no phones dialed"}{ticket ? ", transfer ticket created" : ""}
+                  {bridgeMode === "live" ? (bridgeLabel[bridgeStatus ?? ""] ?? "Doctor connection requested; waiting for the phones to join") : "Simulated connection; no phones dialed"}{ticket ? ", transfer ticket created" : ""}
                   {released ? `, ${released} other ${released === 1 ? "hospital" : "hospitals"} released` : ""}.
                 </div>
               </div>

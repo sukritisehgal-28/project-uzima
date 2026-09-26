@@ -33,6 +33,7 @@ def voice(monkeypatch):
     assert r.status_code == 200
     xml = gateway.twiml_docs[send.call_args.args[1]["Url"].rsplit("/", 1)[-1]]
     assert "AI assistant" in xml and "<Gather" in xml and "<Stream" not in xml
+    assert xml.startswith('<Response><Pause length="1"/><Gather')
     token = re.search(r"/voice/([a-f0-9]+)/0", xml).group(1)
     def post(turn, text, signature=True):
         path = f"/voice/{token}/{turn}"
@@ -54,7 +55,9 @@ def results(tid):
 
 def test_speech_readback_confirmation_collector_and_connect(voice):
     tid, token, post, send = voice
-    assert "How many minutes" in post(0, "yes").text
+    answer = post(0, "yes").text
+    assert "How many minutes" in answer
+    assert '<Pause length="1"' not in answer
     assert "ready in 10 minutes" in post(1, "ten minutes").text
     assert not results(tid)
     assert "stay on the line" in post(2, "yes").text
@@ -110,3 +113,21 @@ def test_public_gateway_does_not_expose_dial_or_transfer_endpoints():
     tc = TestClient(app)
     for path in ["/call", "/bridge", "/transfers", "/outbox", "/twins"]:
         assert tc.post(path, json={}).status_code == 404
+
+
+def test_public_gateway_forwards_signed_handoff_callbacks_only(monkeypatch):
+    import httpx
+    from services.public.app import main as public
+    seen = []
+    original_client = httpx.AsyncClient
+    def receive(request):
+        seen.append(request)
+        return httpx.Response(204)
+    monkeypatch.setattr(public.httpx, "AsyncClient", lambda **kwargs: original_client(transport=httpx.MockTransport(receive), **kwargs))
+    tc = TestClient(public.app)
+    path = "/handoff-status/" + "a" * 32 + "/conference"
+    assert tc.post(path, data={"StatusCallbackEvent": "conference-end"}, headers={"X-Twilio-Signature": "signed"}).status_code == 204
+    assert seen[0].headers["X-Twilio-Signature"] == "signed"
+    assert seen[0].content == b"StatusCallbackEvent=conference-end"
+    assert tc.get(path).status_code == 404
+    assert tc.get("/handoffs/private-transfer").status_code == 404

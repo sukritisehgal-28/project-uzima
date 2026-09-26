@@ -128,6 +128,8 @@ def test_call_twiml_greeting_exercises_real_production_path(monkeypatch):
     assert doc_id in twiml_docs, "twiml_docs must contain the generated document"
     twiml = twiml_docs[doc_id]
 
+    assert twiml.startswith('<Response><Pause length="1"/><Say>')
+
     # 1. Exact required greeting text
     assert ("Hello, this is an AI assistant calling for South Sunflower County Hospital "
             "about a patient transfer. Please hold one moment.") in twiml

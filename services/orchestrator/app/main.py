@@ -114,6 +114,14 @@ async def transfer_status(tid: str):
     t = TRANSFERS.get(tid) or HTTPException(404)
     if isinstance(t, HTTPException):
         raise t
+    if (t.get("bridge") or {}).get("mode") == "live":
+        try:
+            async with client("sync_twilio") as c:
+                response = await c.get(f"/handoffs/{tid}", timeout=2)
+                if response.status_code == 200:
+                    t["bridge"] = response.json()
+        except httpx.HTTPError:
+            pass  # Keep the last confirmed state during a temporary outage.
     results = await _results(tid)
     elapsed = t.get("accepted_at", time.time()) - t["started"]
     ranking = rank(results)
@@ -177,7 +185,7 @@ async def accept(tid: str, req: AcceptRequest):
             raise HTTPException(502, "Doctor connection failed. No connection is confirmed; please retry.")
         if bridge.get("mode") not in {"live", "mock"}:
             raise HTTPException(502, "The phone service did not acknowledge the connection request.")
-        t["bridge"] = {"mode": bridge["mode"], "status": "initiated" if bridge["mode"] == "live" else "simulated"}
+        t["bridge"] = {"mode": bridge["mode"], "status": bridge.get("status", "initiated") if bridge["mode"] == "live" else "simulated"}
         t["state"] = "accepted"
         t["accepted_at"] = time.time()
         await _tevent(tid, "held", chosen["hospital_id"])

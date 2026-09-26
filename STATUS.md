@@ -23,6 +23,8 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 
 | 15 | Final integration: Bedrock voice, honest failures, Connect, timing, public handoff and release plan | Core / Voice / Screen | Udit + Codex | done | 14:46 | 76 tests/build pass; full live hospital confirmation and three-party conference verified via Twilio; public ticket/record decrypt verified |
 
+| 16 | One-second greeting and dashboard handoff completion | Core / Voice / Screen | Udit + Codex | done | 15:09 | 79 tests/build pass; initial pickup pause is one second; signed callbacks update calling/connected/ended states; user confirmed two-way audio |
+
 ## Checkpoints
 
 - 1:00 one live call works
@@ -74,3 +76,7 @@ Newest at the bottom. One line each: time, who, message.
 - 14:52 Udit + Codex: Corrected doctor handoff test dialed the separate accepting doctor first, then the sending doctor after the summary callback; Twilio reports both calls completed (36/13 seconds). Waiting for user confirmation of summary and two-way audio. Sakshi PR #4 merged after preserving the latest submission draft. Updated current architecture/test facts in docs/SUBMISSION.md; repository is still private, so judges need access or an owner-approved visibility change.
 
 - 14:56 Udit + Codex: Full fresh rehearsal ac1ac837cb completed the hospital availability/ready-time/read-back sequence (confirmed yes, 10 minutes), then called the separate accepting doctor, read the summary, and dialed the sending doctor. Twilio reports all three roles in-progress in one conference, three participants and all unmuted. Dashboard restored the same transfer. 76 tests and build pass. Final code is going to main; remaining human tasks are recording, judge access to the private repo and submission.
+
+- 15:01 Udit + Codex: User requests one-second initial greeting delay and dashboard update after doctors finish. Touching Twilio callbacks, collector shared event type, orchestrator bridge status, dashboard and tests. Both-way phone audio confirmed by Udit.
+
+- 15:09 Udit + Codex: Added signed conference/call callbacks and internal handoff status polling (no shared event schema change). Dashboard marks connected only when both doctors join and reports call end/failure. Initial hospital TwiML pauses one second on both voice providers, with no repeated pause on later turns. 79 offline tests and build pass. User confirmed two-way audio; Twilio reports no active calls. Restarted updated services, retained the completed demo and ticket, and verified the dashboard shows Doctor call ended. No new live calls placed.
