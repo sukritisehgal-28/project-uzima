@@ -29,6 +29,8 @@ Pull before reading. Update only your own rows. Times are PT. Statuses: todo, do
 
 | 18 | Vercel dashboard deployment with protected live backend | Screen / Core | Udit + Codex | done | 15:27 | Vercel preview ready; access-code protected relay; 81 Python and 3 relay tests pass; live backend remains on laptop/tunnel |
 
+| 19 | Remove demo access code | Screen / Core | Udit + Codex | done | 15:30 | Removed login and API code checks; updated preview ready; 81 backend and 3 relay tests/build pass |
+
 ## Checkpoints
 
 - 1:00 one live call works
@@ -92,3 +94,7 @@ Newest at the bottom. One line each: time, who, message.
 - 15:22 Udit + Codex: User requested Vercel after AWS hosting permissions were denied. Touching dashboard, public gateway and deployment tests/docs. Public dashboard API requires a separate demo access code; no provider credentials enter the frontend. Vercel login pending.
 
 - 15:27 Udit + Codex: Vercel preview ready at https://project-uzima-my1s60pe9-uditanshu-tomars-projects.vercel.app . Hosted dashboard requires the private demo access code and uses status polling; backend relay tests reject unauthenticated/private routes. Provider credentials remain local. Public gateway health and preserved completed transfer verified through the tunnel. No calls placed. CLI initially defaulted the first deployment to production; replaced it with an explicit preview. Deployment instructions in docs/VERCEL.md.
+
+- 15:29 Udit + Codex: User explicitly requests removing the access code altogether. Removing dashboard login, relay authentication requirement and local gateway code check; retaining the existing route allowlist and signed Twilio callbacks.
+
+- 15:30 Udit + Codex: Removed the demo access code from UI, both relays and private local settings at the user’s explicit request. Unauthenticated tunnel health/current-demo requests return 200; callback signatures and private route restrictions remain. New preview: https://project-uzima-ixm7ocyn7-uditanshu-tomars-projects.vercel.app . No phone calls placed.

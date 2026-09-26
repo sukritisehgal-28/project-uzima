@@ -1,11 +1,9 @@
-"""Narrow, authenticated dashboard access for the hosted demo."""
+"""Narrow dashboard access for the hosted demo."""
 import re
-import secrets
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from services.shared import config
 from services.shared.clients import client
 
 router = APIRouter(prefix="/dashboard")
@@ -13,9 +11,6 @@ router = APIRouter(prefix="/dashboard")
 
 @router.api_route("/{path:path}", methods=["GET", "POST"])
 async def dashboard(path: str, request: Request):
-    code = config.env("DASHBOARD_ACCESS_CODE")
-    if not code or not secrets.compare_digest(request.headers.get("authorization", ""), f"Bearer {code}"):
-        raise HTTPException(401, "Enter the demo access code.")
     allowed = (request.method == "GET" and re.fullmatch(r"(?:health|centers|transfers/[a-f0-9]{10})", path)
                or request.method == "POST" and re.fullmatch(r"(?:transfers|transfers/[a-f0-9]{10}/accept)", path))
     if not allowed:
