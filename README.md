@@ -9,7 +9,9 @@ Hospitals don't install anything. They just answer the phone.
 - **Live demo:** [project-uzima.vercel.app](https://project-uzima.vercel.app/)
 - **The story behind it:** [docs/STORY.md](docs/STORY.md)
 
-> Hackathon prototype built at the Healthcare AI Hackathon, San Francisco, September 26, 2026. It uses fictional patients only and never dials real hospital numbers.
+**Winner of the Second Prize and the People's Choice Award** at the Healthcare AI Hackathon, San Francisco, September 26, 2026.
+
+> Hackathon prototype built in one day at that event. It uses fictional patients only and never dials real hospital numbers.
 
 ## How it works
 
@@ -130,7 +132,7 @@ AGENTS.md           how changes are coordinated
 
 ## Team
 
-Project Uzima was a group project, and every member played an important role in building it: Uditanshu Tomar, Sakshi Asati and Sukriti Sehgal.
+Project Uzima was a group project, and every member played an important role in building it: Uditanshu Tomar, Sakshi Asati and Sukriti Sehgal. It won the Second Prize and the People's Choice Award at the Healthcare AI Hackathon in San Francisco.
 
 ## License
 

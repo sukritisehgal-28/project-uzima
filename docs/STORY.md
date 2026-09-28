@@ -62,6 +62,8 @@ We tested it with automated tests covering selection, ranking, the voice convers
 
 Project Uzima was a group project built at the Healthcare AI Hackathon in San Francisco on September 26, 2026, and every member played an important role: Uditanshu Tomar, Sakshi Asati and Sukriti Sehgal.
 
+Uzima won the **Second Prize** and the **People's Choice Award** at the hackathon.
+
 ## Sources
 
 - Lancet Neurology, January 2026, on thrombectomy transfer times: https://www.eurekalert.org/news-releases/1113022
