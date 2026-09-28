@@ -22,7 +22,7 @@ A clinician says what the patient needs and how fast. Uzima calls every capable 
 
 **Core rule: hospitals never open anything.** No app, page, link, SMS or QR code for hospitals. Only a normal phone call. Don't add any hospital-facing UI or messages.
 
-Full plan: `docs/PLAN.md`. Background, decisions and why, pitch, Twilio and AWS details, design direction: `docs/CONTEXT.md`. UI mockups: `docs/ui-mockups/`. Pitch deck: `docs/pitch/Project-Uzima-pitch.html`. Demo script: `docs/demo-script.md`. Old plan (v2): `docs/archive/`.
+Overview, setup and architecture: `README.md`. The story (why, why now, what we built): `docs/STORY.md`. Background, decisions and why, Twilio and AWS details, design direction: `docs/CONTEXT.md`. Release plan: `docs/INTEGRATION_PLAN.md`.
 
 ## Team
 

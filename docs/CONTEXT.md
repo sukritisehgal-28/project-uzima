@@ -77,7 +77,7 @@ Mockups: `docs/ui-mockups/` (1 intake, 2 race, 3 connect, 4 track). They're the 
 
 ## Demo run (about 3 min)
 
-See `docs/demo-script.md`. Heart attack case, default window (10 hospitals), 3 real phones ring (Sakshi, Sukriti, a judge), answers read back, ranking, Connect, clock comparison, then slides 5 and 6.
+Heart attack case, default window (10 hospitals), 3 real phones ring (Sakshi, Sukriti, a judge), answers read back, ranking, Connect, clock comparison, then slides 5 and 6.
 
 ## Judge questions to prepare
 
